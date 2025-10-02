@@ -54,3 +54,6 @@ class JSONRepository(Repository):
 
     def get(self):
         raise ValueError("Whatever")
+
+    def get_by_date(self, date) -> list[Set]:
+        return [e for e in self.events if e.timestamp.date() == date.date()]

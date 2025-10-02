@@ -7,5 +7,6 @@ requires-python = ">=3.13"
 dependencies = [
     "pydantic>=2.11.9",
     "pytest>=8.4.2",
+    "toolz>=1.0.0",
     "typer>=0.19.2",
 ]

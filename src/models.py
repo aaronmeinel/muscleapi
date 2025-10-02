@@ -9,3 +9,10 @@ class Set:
     exercise: str
     reps: int
     weight: float
+    timestamp: datetime
+
+
+@dataclass(frozen=True)
+class Workout:
+    date: datetime
+    sets: list[Set]
