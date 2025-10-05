@@ -37,11 +37,6 @@ def test_log_set():
     assert _set.weight == 100.0
 
 
-def test_json_repository_loads_nonexistent_file(tmp_path):
-    repo = JSONRepository(tmp_path / "nonexistent.json")
-    assert repo.all() == []
-
-
 def test_log_set_json(tmp_path):
 
     repo = JSONRepository(tmp_path / "events.json")

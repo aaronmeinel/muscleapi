@@ -1,0 +1,30 @@
+name: twice a week maintenance
+workouts:
+- exercises:
+  - name: Squat
+    sets:
+    - prescribed_reps: null
+      prescribed_weight: null
+  - name: Bench press
+    sets:
+    - prescribed_reps: null
+      prescribed_weight: null
+  - name: Deadlift
+    sets:
+    - prescribed_reps: null
+      prescribed_weight: null
+  index: null
+- exercises:
+  - name: Squat
+    sets:
+    - prescribed_reps: null
+      prescribed_weight: null
+  - name: Pushup
+    sets:
+    - prescribed_reps: null
+      prescribed_weight: null
+  - name: Pullup
+    sets:
+    - prescribed_reps: null
+      prescribed_weight: null
+  index: null

@@ -34,21 +34,6 @@ def text_progress_table(logged_exercises, exercises_planned):
             This is basically your training plan for the day.
     """
 
-    # We assume that the exercises_planned and logged_exercises have the same structure for now
-    # We assume that structure is:
-    # {
-    #   "exercise_name": [
-    #       {
-    #           "performed_reps": int,  # Only in logged_exercises
-    #           "performed_weight": float,  # Only in logged_exercises
-    #           "prescribed_reps": int,
-    #           "prescribed_weight": float,
-    #       },
-    #       ...
-    #   ],
-    #   ...
-    # }
-    # }
     joined = toolz.merge_with(
         toolz.compose(list, toolz.concat),
         logged_exercises,

@@ -1,7 +1,9 @@
 import typer
 import toolz
+from src.models import MesocyclePlan
 from src.presentation import current_day_format, text_progress_table
 from src.repository import JSONRepository
+from src.repository import YAMLTemplateRepository
 from src.service import LoggingService
 from rich import print
 from rich.markdown import Markdown
@@ -31,26 +33,12 @@ def history():
 def train():
     """Show today's training plan and progress (i.e. logged sets)."""
     logged_exercises = current_day_format(repository.get_by_date(datetime.now()))
+    template = YAMLTemplateRepository("template.yaml").get()
+    plan: MesocyclePlan = template.to_mesocycle_plan()
 
-    exercises_planned = {
-        "squat": [
-            {"prescribed_reps": 12, "prescribed_weight": 100},
-            {"prescribed_reps": 10, "prescribed_weight": 105},
-        ],
-        "bench press": [
-            {"prescribed_reps": 10, "prescribed_weight": 80},
-            {"prescribed_reps": 8, "prescribed_weight": 85},
-            {"prescribed_reps": 6, "prescribed_weight": 90},
-        ],
-        "deadlift": [
-            {"prescribed_reps": 6, "prescribed_weight": 120},
-            {"prescribed_reps": 3, "prescribed_weight": 150},
-        ],
-        "pull ups": [
-            {"prescribed_reps": 8, "prescribed_weight": 82},
-            {"prescribed_reps": 6, "prescribed_weight": 82},
-        ],
-    }
+    exercises_planned = plan.get_current_workout_prescriptions(
+        repository.all(), lambda x: None
+    )
 
     for elem in text_progress_table(logged_exercises, exercises_planned):
         print(elem)
