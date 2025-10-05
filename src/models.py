@@ -67,6 +67,23 @@ class Template:
         ]
         return MesocyclePlan(template_name=self.name, weeks=weeks)
 
+    def get_exercise_names(self) -> list[str]:
+        """Returns a list of all exercise names in this template.
+
+        This is useful for validation and suggestion/autocomplete purposes when
+        logging sets.
+        The idea is that logging a set only makes sense if the exercise is part of the plan.
+        Replacing an exercise in the plan is a different operation that should be handled
+        separately.
+        """
+        return list(
+            {
+                exercise.name
+                for workout in self.workouts
+                for exercise in workout.exercises
+            }
+        )
+
 
 @dataclass(frozen=True)
 class Week:

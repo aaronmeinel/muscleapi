@@ -9,22 +9,30 @@ from rich import print
 from rich.markdown import Markdown
 from rich.table import Table
 from datetime import datetime
+from returns.pipeline import is_successful
 
 app = typer.Typer()
 
 
-repository = JSONRepository("events.json")
-logging_service = LoggingService(repository=repository)
+log_repository = JSONRepository("events.json")
+template_repository = YAMLTemplateRepository("template.yaml")
+logging_service = LoggingService(
+    log_repository=log_repository, template_repository=template_repository
+)
 
 
 @app.command()
 def log(exercise: str, reps: int, weight: float):
-    logging_service.log_set(exercise, reps, weight)
+    result = logging_service.log_set(exercise, reps, weight)
+    if is_successful(result):
+        print(f"[green]{result.unwrap()}[/green]")
+    else:
+        print(f"[red]{result.failure()}[/red]")
 
 
 @app.command()
 def history():
-    events = repository.all()
+    events = log_repository.all()
     for event in events:
         print(f"{event.exercise}: {event.reps} reps at {event.weight} kg")
 
@@ -32,12 +40,12 @@ def history():
 @app.command()
 def train():
     """Show today's training plan and progress (i.e. logged sets)."""
-    logged_exercises = current_day_format(repository.get_by_date(datetime.now()))
-    template = YAMLTemplateRepository("template.yaml").get()
+    logged_exercises = current_day_format(log_repository.get_by_date(datetime.now()))
+    template = template_repository.get()  # Assume just one template for now
     plan: MesocyclePlan = template.to_mesocycle_plan()
 
     exercises_planned = plan.get_current_workout_prescriptions(
-        repository.all(), lambda x: None
+        log_repository.all(), lambda x: None
     )
 
     for elem in text_progress_table(logged_exercises, exercises_planned):
