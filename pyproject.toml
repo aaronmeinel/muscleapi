@@ -17,3 +17,6 @@ dependencies = [
     "typer>=0.19.2",
     "wemake-python-styleguide>=1.4.0",
 ]
+
+[tool.black]
+line-length = 79

@@ -39,16 +39,18 @@ def history():
 @app.command()
 def train():
     """Show today's training plan and progress (i.e. logged sets)."""
+    logged_exercises = log_repository.all()
 
-    logged_exercises = current_day_format(log_repository.all())
     template = template_repository.get()  # Assume just one template for now
     plan: MesocyclePlan = template.to_mesocycle_plan()
 
     exercises_planned = plan.get_current_workout_prescriptions(
-        log_repository.all(), lambda weight_or_reps: None
+        logged_exercises, lambda weight_or_reps: None
     )
 
-    for elem in text_progress_table(logged_exercises, exercises_planned):
+    for elem in text_progress_table(
+        current_day_format(logged_exercises), exercises_planned
+    ):
         rich.print(elem)
 
 

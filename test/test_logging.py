@@ -77,6 +77,7 @@ def test_log_set_json(tmp_path, mock_template_repository):
 
     events = repo.all()
     assert all(isinstance(event, Set) for event in events)
+    assert len(events) == 2
 
 
 def test_show_current_day(mock_template_repository):
