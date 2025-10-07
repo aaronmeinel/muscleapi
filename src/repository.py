@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from pydantic import BaseModel
+from src.events import ExerciseCompleted, ExerciseStarted
 from src.models import Exercise, Set, SetPrescription, Template, Workout
 from src.service import Repository
 from pathlib import Path
@@ -9,10 +10,36 @@ import yaml
 
 class SetAdapter(BaseModel):
     timestamp: datetime
-    data: Set
+    data: Set  # noqa
+    model_class: str = "Set"
 
     def to_domain(self):
         return self.data
+
+
+class ExerciseStartedAdapter(BaseModel):
+    timestamp: datetime
+    data: ExerciseStarted  # noqa
+    model_class: str = "ExerciseStarted"
+
+    def to_domain(self):
+        return self.data
+
+
+class ExerciseCompletedAdapter(BaseModel):
+    timestamp: datetime
+    data: ExerciseCompleted  # noqa
+    model_class: str = "ExerciseCompleted"
+
+    def to_domain(self):
+        return self.data
+
+
+ADAPTER_MAP = {
+    "Set": SetAdapter,
+    "ExerciseStarted": ExerciseStartedAdapter,
+    "ExerciseCompleted": ExerciseCompletedAdapter,
+}
 
 
 class JSONRepository(Repository):
@@ -32,22 +59,33 @@ class JSONRepository(Repository):
                     data = json.load(f)
                 except json.JSONDecodeError:
                     return []
-                sets = []
+                events = []
                 for item in data:
                     if isinstance(item, str):
                         item = json.loads(item)
-                    sets.append(SetAdapter(**item).to_domain())
-                return sets
+
+                    adapter = ADAPTER_MAP.get(item.get("model_class"), None)
+                    if adapter:
+                        events.append(adapter(**item).to_domain())
+                    else:
+                        raise ValueError(
+                            f"Unknown model class: {item.get('model_class')}"
+                        )
+                return events
         except FileNotFoundError:
             return []
 
     def _save(self):
         try:
             with open(self.filepath, "w") as f:
-                _data = [
-                    SetAdapter(timestamp=datetime.now(), data=s).dict()
-                    for s in self.events
-                ]
+                _data = []
+                for event in self.events:
+                    adapter = ADAPTER_MAP.get(event.__class__.__name__, None)
+                    if not adapter:
+                        raise ValueError("No adapter for {}")
+                    _data.append(
+                        adapter(timestamp=datetime.now(), data=event).dict()
+                    )
                 json.dump(_data, f, indent=2, default=str)
         except FileNotFoundError as e:
             raise e
@@ -112,10 +150,12 @@ class YAMLTemplateRepository(Repository):
             workouts = []
             for workout in read_model.workouts:
                 exercise_data = [
-                    ExerciseReadModel(**ex) for ex in getattr(workout, "exercises", [])
+                    ExerciseReadModel(**ex)
+                    for ex in getattr(workout, "exercises", [])
                 ]
                 exercises = [
-                    Exercise(name=ex.name, sets=ex.sets) for ex in exercise_data
+                    Exercise(name=ex.name, sets=ex.sets)
+                    for ex in exercise_data
                 ]
                 workouts.append(Workout(exercises=exercises))
             templates.append(Template(name=read_model.name, workouts=workouts))

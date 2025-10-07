@@ -1,25 +1,29 @@
 from datetime import datetime
 from typing import Protocol
+from src.events import ExerciseCompleted, ExerciseStarted
 from src.models import Set, Template
 from thefuzz import fuzz
-import toolz
+
 from returns.result import Result, Success, Failure
 
 
 class Repository(Protocol):
     def add(self, event): ...
-    def all(self): ...
+    def all(self) -> list: ...
     def get(self) -> object: ...
 
 
 class LoggingService:
     log_repository: Repository
     template_repository: Repository
-    # The idea here is that you're going to log against a template - anything else makes no sense,
+    # The idea here is that you're going to log against a template
+    # - anything else makes no sense,
     # as you need that context to make sense of the logged sets.
     template: Template
 
-    def __init__(self, log_repository: Repository, template_repository: Repository):
+    def __init__(
+        self, log_repository: Repository, template_repository: Repository
+    ):
         self.log_repository = log_repository
         self.template_repository = template_repository
         self.template = self.template_repository.get()
@@ -29,29 +33,57 @@ class LoggingService:
     ) -> Result[str, ValueError]:
         exercise_names = self.template.get_exercise_names()
         if exercise not in exercise_names:
-            match_rank = {fuzz.ratio(exercise, name): name for name in exercise_names}
+            match_rank = {
+                fuzz.ratio(exercise, name): name for name in exercise_names
+            }
             best_match = match_rank.get(max(match_rank.keys()), None)
             if best_match:
                 return Success(
-                    f"Exercise {exercise} not in template {self.template.name}. Did you mean {best_match}?"
+                    f"Exercise {exercise} not in {self.template.name}.\
+                    Did you mean {best_match}?"
                 )
             else:
                 return Failure(
                     ValueError(
-                        f"No match for {exercise} found in template {self.template.name}. Known exercises are: {', '.join(exercise_names)}"
+                        f"No match for {exercise} found in template\
+                          {self.template.name}.\
+                          Known exercises are: {', '.join(exercise_names)}"
                     )
                 )
+        week_index = self.get_current_week_index()
+        workout_index = self.get_current_workout_index()
+        log = self.log_repository.all()
+        try:
+            payload = Set.create_safe(
+                log=log,
+                exercise=exercise,
+                reps=reps,
+                weight=weight,
+                week_index=week_index,
+                workout_index=workout_index,
+            )
+        except ValueError as e:
+            return Failure(e)
 
-        _set = Set(
-            exercise=exercise,
-            reps=reps,
-            weight=weight,
-            timestamp=datetime.now(),
-            week_index=self.get_current_week_index(),
-            workout_index=self.get_current_workout_index(),
+        is_first_set = not any(
+            map(
+                lambda e: isinstance(e, Set)
+                and e.workout_index == workout_index
+                and e.week_index == week_index
+                and e.exercise == exercise,
+                log,
+            )
         )
 
-        self.log_repository.add(_set)
+        if is_first_set:
+            started_event = ExerciseStarted(
+                name=exercise,
+                workout_index=workout_index,
+                week_index=week_index,
+                feedback={},
+            )
+            self.log_repository.add(started_event)
+        self.log_repository.add(payload)
         return Success(f"Logged set: {exercise} {reps} reps at {weight} kg")
 
     def get_current_week_index(self) -> int:
@@ -62,6 +94,21 @@ class LoggingService:
 
     def show_current_day(self):
         raise NotImplementedError()
+
+    def complete_exercise(
+        self, exercise_name: str, feedback: dict
+    ) -> Result[str, ValueError]:
+        workout_index = self.get_current_workout_index()
+        week_index = self.get_current_week_index()
+        completed_event = ExerciseCompleted(
+            name=exercise_name,
+            timestamp=datetime.now(),
+            workout_index=workout_index,
+            week_index=week_index,
+            feedback=feedback,
+        )
+        self.log_repository.add(completed_event)
+        return Success(f"Logged completion for exercise: {exercise_name}")
 
 
 class PlanManagementService:
