@@ -10,7 +10,8 @@ from rich.table import Table
 
 def current_day_format(todays_sets: list[Set]) -> dict[str, list[dict]]:
     """Format today's events for display."""
-    by_exercise = toolz.groupby(lambda _set: _set.exercise, todays_sets)
+    sets_only = filter(lambda e: isinstance(e, Set), todays_sets)
+    by_exercise = toolz.groupby(lambda _set: _set.exercise, sets_only)
     return {
         exercise: [
             {
@@ -85,8 +86,8 @@ def join_sets(
 
     return {
         exercise: [
-            toolz.merge(*seqs) for seqs in list(zip_longest(*set_lists,
-                                                            fillvalue={}))
+            toolz.merge(*seqs)
+            for seqs in list(zip_longest(*set_lists, fillvalue={}))
         ]
         for exercise, set_lists in toolz.merge_with(
             list,
