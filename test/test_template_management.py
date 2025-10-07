@@ -1,8 +1,8 @@
 from datetime import datetime
-from numbers import Number
+
 from pathlib import Path
-from typing import Optional
-from src.repository import YAMLTemplateRepository, TemplateReadModel
+
+from src.repository import YAMLTemplateRepository
 from src.models import (
     MesocyclePlan,
     Set,
@@ -12,26 +12,8 @@ from src.models import (
     Week,
     Workout,
 )
-from pytest import fixture
+
 import yaml
-
-from src.service import PlanManagementService
-
-
-@fixture
-def sample_template():
-    exercises1 = [
-        Exercise("Squat", [SetPrescription()]),
-        Exercise("Bench press", [SetPrescription()]),
-        Exercise("Deadlift", [SetPrescription()]),
-    ]
-    exercises2 = [
-        Exercise("Squat", [SetPrescription()]),
-        Exercise("Pushup", [SetPrescription()]),
-        Exercise("Pullup", [SetPrescription()]),
-    ]
-    workouts = [Workout(exercises=exercises1), Workout(exercises=exercises2)]
-    return Template("twice a week maintenance", workouts=workouts)
 
 
 def test_write_sample_template_to_yaml(sample_template):
@@ -224,7 +206,8 @@ def test_second_week_has_prescriptions_after_complete_first_week():
         Set(
             exercise="pull ups",
             reps=8,
-            weight=80,  # bodyweight + 0 - special treatment for bodyweight exercises not implemented yet
+            weight=80,  # bodyweight + 0 - special treatment for bodyweight
+            # exercises not implemented yet
             timestamp=datetime.now(),
             week_index=0,
             workout_index=1,
@@ -233,14 +216,13 @@ def test_second_week_has_prescriptions_after_complete_first_week():
     # Now, we're in week 1, workout 0
 
     # Since we just want to test that the data is formatted correctly,
-    # we'll use a mock progress function that just returns the weights we want to see here.
+    # we'll use a mock progress function that just returns the weights
+    # we want to see here.
     # That result doesnt make much sense, but we dont wont to test
     # the progress function here, just the formatting of the output.
-    def mock_progress_function(x: Optional[Number]) -> Optional[Number]:
-        return 5
 
     current_workout_prescriptions = plan.get_current_workout_prescriptions(
-        sets_performed=sets, progress_function=mock_progress_function
+        sets_performed=sets, progress_function=lambda weight_or_reps: 5
     )
     # We should see prescriptions based on last week's performance.
     assert current_workout_prescriptions == {
@@ -251,19 +233,3 @@ def test_second_week_has_prescriptions_after_complete_first_week():
             {"prescribed_reps": 5, "prescribed_weight": 5},
         ],
     }
-
-
-def test_plan_management_service_create_plan(tmp_path, sample_template):
-    class MockRepo(YAMLTemplateRepository):
-        def _read_file(self):
-            return ""
-
-    repo = MockRepo(tmp_path / "templates.yaml")
-    repo.add(sample_template)
-
-    assert len(repo.all()) == 1
-    template = repo.get()
-    assert template.name == "twice a week maintenance"
-
-    service = PlanManagementService(repository=repo)
-    service.create_plan(name="my plan", exercises=["squat", "bench press", "deadlift"])
