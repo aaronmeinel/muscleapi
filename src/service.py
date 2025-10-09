@@ -76,7 +76,7 @@ class LoggingService:
 
         if is_first_set:
             started_event = ExerciseStarted(
-                name=exercise,
+                exercise=exercise,
                 workout_index=workout_index,
                 week_index=week_index,
                 feedback={},
@@ -104,7 +104,7 @@ class LoggingService:
         workout_index = self.get_current_workout_index()
         week_index = self.get_current_week_index()
         completed_event = ExerciseCompleted(
-            name=exercise_name,
+            exercise=exercise_name,
             workout_index=workout_index,
             week_index=week_index,
             feedback=feedback,
@@ -120,7 +120,7 @@ class LoggingService:
             ex.name for ex in self.template.workouts[workout_index].exercises
         ]
         completed_exercises = {
-            e.name
+            e.exercise
             for e in log
             if isinstance(e, ExerciseCompleted)
             and e.workout_index == workout_index

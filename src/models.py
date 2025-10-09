@@ -47,7 +47,7 @@ class Set:
             lambda e: isinstance(e, ExerciseCompleted)
             and e.workout_index == workout_index
             and e.week_index == week_index
-            and e.name == exercise,
+            and e.exercise == exercise,
             log,
         )
         if any(completed):

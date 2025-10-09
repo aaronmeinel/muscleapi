@@ -108,6 +108,7 @@ def test_show_current_day(mock_template_repository):
                 "performed_weight": 100,
                 "prescribed_reps": 11,  # Should be the same as in exercises_planned
                 "prescribed_weight": 100,  # We store this here for prediction purposes, but this is not used in the UI
+                "started": True,
             },
         ],
         "Bench press": [
@@ -116,6 +117,7 @@ def test_show_current_day(mock_template_repository):
                 "performed_weight": 100,
                 "prescribed_reps": 12,
                 "prescribed_weight": 100,
+                "started": True,
             }
         ],
     }
@@ -210,7 +212,7 @@ def test_log_exercise_completed(mock_template_repository):
     assert len(repo.all()) == 7  # One completed event should be logged
     completed_event = repo.get()
     assert completed_event is not None
-    assert completed_event.name == exercise_name
+    assert completed_event.exercise == exercise_name
 
     log_result = service.log_set(exercise_name, 5, 100)
     assert not is_successful(log_result)

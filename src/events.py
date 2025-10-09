@@ -3,7 +3,7 @@ from pydantic.dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ExerciseStarted:
-    name: str
+    exercise: str
     workout_index: int
     week_index: int
     feedback: dict
@@ -11,7 +11,7 @@ class ExerciseStarted:
 
 @dataclass(frozen=True)
 class ExerciseCompleted:
-    name: str
+    exercise: str
     workout_index: int
     week_index: int
     feedback: dict

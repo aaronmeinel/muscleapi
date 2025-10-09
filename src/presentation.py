@@ -10,8 +10,12 @@ from rich.table import Table
 
 def current_day_format(todays_sets: list[Set]) -> dict[str, list[dict]]:
     """Format today's events for display."""
-    sets_only = filter(lambda e: isinstance(e, Set), todays_sets)
-    by_exercise = toolz.groupby(lambda _set: _set.exercise, sets_only)
+
+    by_exercise = toolz.groupby(lambda _set: _set.exercise, todays_sets)
+    by_type = toolz.valmap(
+        toolz.curried.groupby(lambda x: x.__class__.__name__), by_exercise
+    )
+
     return {
         exercise: [
             {
@@ -19,10 +23,11 @@ def current_day_format(todays_sets: list[Set]) -> dict[str, list[dict]]:
                 "performed_weight": set_data.weight,
                 "prescribed_reps": set_data.reps,
                 "prescribed_weight": set_data.weight,
+                "started": val.get("ExerciseStarted", False) is not False,
             }
-            for set_data in sets
+            for set_data in val["Set"]
         ]
-        for exercise, sets in by_exercise.items()
+        for exercise, val in by_type.items()
     }
 
 
@@ -98,13 +103,17 @@ def join_sets(
 
 
 def construct_exercise_table(exercise: str, sets: list[dict]) -> Table:
+
     table = Table(title=exercise.capitalize())
     table.add_column("Reps")
     table.add_column("Weight")
+    table.add_column("Started")
+    table.add_column("Completed")
+
     for set_data in sets:
+        started = set_data.get("started", False)
         table.add_row(
-            format_reps(set_data),
-            format_weight(set_data),
+            format_reps(set_data), format_weight(set_data), str(started)
         )
     return table
 
@@ -133,6 +142,7 @@ def text_progress_table(
             This is basically your training plan for the day.
     """
     joined = join_sets(logged_exercises, exercises_planned)
+
     exercise_tables = []
     for exercise, sets in joined.items():
         table = construct_exercise_table(exercise, sets)
