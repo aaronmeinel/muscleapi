@@ -24,6 +24,7 @@ def current_day_format(todays_sets: list[Set]) -> dict[str, list[dict]]:
                 "prescribed_reps": set_data.reps,
                 "prescribed_weight": set_data.weight,
                 "started": val.get("ExerciseStarted", False) is not False,
+                "completed": val.get("ExerciseCompleted", False) is not False,
             }
             for set_data in val["Set"]
         ]
@@ -112,8 +113,12 @@ def construct_exercise_table(exercise: str, sets: list[dict]) -> Table:
 
     for set_data in sets:
         started = set_data.get("started", False)
+        completed = set_data.get("completed", False)
         table.add_row(
-            format_reps(set_data), format_weight(set_data), str(started)
+            format_reps(set_data),
+            format_weight(set_data),
+            str(started),
+            str(completed),
         )
     return table
 

@@ -30,6 +30,17 @@ def log(exercise: str, reps: int, weight: float):
 
 
 @app.command()
+def complete(exercise: str, joint_pain: int, pump: int, workload: int):
+    """Mark an exercise as completed for today."""
+    feedback = {"joint_pain": joint_pain, "pump": pump, "workload": workload}
+    result = logging_service.complete_exercise(exercise, feedback)
+    if is_successful(result):
+        rich.print(f"[green]{result.unwrap()}[/green]")
+    else:
+        rich.print(f"[red]{result.failure()}[/red]")
+
+
+@app.command()
 def history():
     events = log_repository.all()
     for event in events:
