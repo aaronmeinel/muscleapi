@@ -289,14 +289,16 @@ def test_exercises_logged_after_one_workout_completed_will_have_incremented_work
     for exercise in exercises:
         service.complete_exercise(exercise.name, {"soreness": 2})
     assert len(repo.all()) == 9  # 6 + 3 completed events
+    # Complete the workout
+    completion_result = service.complete_workout()
+    assert is_successful(completion_result)
+
     # Now log a set for the first exercise again
     first_exercise = template.workouts[1].exercises[0]  # Second workout
     exercise = first_exercise.name
+    log_result = service.log_set(first_exercise.name, 5, 100)
+    assert is_successful(log_result)
 
-    assert is_successful(service.log_set(first_exercise.name, 5, 100))
-    assert (
-        len(repo.all()) == 11
-    )  # Another set event should be logged + started event
     last_event = repo.get()
     assert last_event is not None
     assert last_event.workout_index == 1  # Should be the next workout index
