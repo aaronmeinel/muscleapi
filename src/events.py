@@ -15,3 +15,9 @@ class ExerciseCompleted:
     workout_index: int
     week_index: int
     feedback: dict
+
+
+@dataclass(frozen=True)
+class WorkoutCompleted:
+    workout_index: int
+    week_index: int

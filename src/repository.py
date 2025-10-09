@@ -7,6 +7,12 @@ from src.service import Repository
 from pathlib import Path
 import yaml
 
+###########################################
+# JSON Repository
+
+# Used for logging sets and related events
+###########################################
+
 
 class SetAdapter(BaseModel):
     timestamp: datetime
@@ -35,10 +41,20 @@ class ExerciseCompletedAdapter(BaseModel):
         return self.data
 
 
+class CompletedWorkoutAdapter(BaseModel):
+    timestamp: datetime
+    data: ExerciseCompleted  # noqa
+    model_class: str = "WorkoutCompleted"
+
+    def to_domain(self):
+        return self.data
+
+
 ADAPTER_MAP = {
     "Set": SetAdapter,
     "ExerciseStarted": ExerciseStartedAdapter,
     "ExerciseCompleted": ExerciseCompletedAdapter,
+    "WorkoutCompleted": CompletedWorkoutAdapter,
 }
 
 
@@ -102,6 +118,12 @@ class JSONRepository(Repository):
 
     def get_by_date(self, date) -> list[Set]:
         return [e for e in self.events if e.timestamp.date() == date.date()]
+
+
+#######################################################
+# YAML Repository
+# Used for storing plan templates and configurations
+#######################################################
 
 
 class ExerciseReadModel(BaseModel):

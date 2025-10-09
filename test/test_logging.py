@@ -217,7 +217,7 @@ def test_log_exercise_completed(mock_template_repository):
     assert "already completed" in log_result.failure().args[0]
 
 
-def test_log_workout_completed(mock_template_repository):
+def test_log_workout_completed_happy_path(mock_template_repository):
     """When completing a workout, we need to ensure that all exercises in the workout are completed.
     If not, we should reject the completion request.
     The workout completion should be logged as well.
@@ -225,4 +225,79 @@ def test_log_workout_completed(mock_template_repository):
     That means that from that point on, the workout index should be incremented,
     and sets should be logged against the new workout.
     """
-    assert False, "Not implemented yet"
+    repo = MockLogRepository()
+    service = LoggingService(
+        log_repository=repo, template_repository=mock_template_repository
+    )
+    template = mock_template_repository.get()
+    exercises = template.workouts[0].exercises  # First workout
+    for exercise in exercises:  # Log a set for each exercise in the plan
+        service.log_set(exercise.name, 5, 100)
+    assert (
+        len(repo.all()) == 6
+    )  # One set event per exercise (3) + one started event per exercise (3)
+    # Now complete all exercises
+    for exercise in exercises:
+        service.complete_exercise(exercise.name, {"soreness": 2})
+    assert len(repo.all()) == 9  # 6 + 3 completed events
+    workout_completion_result = service.complete_workout()
+    assert is_successful(workout_completion_result)
+    assert (
+        len(repo.all()) == 10
+    )  # One workout completed event should be logged
+
+
+def test_log_workout_completed_reject_incomplete_workout(
+    mock_template_repository,
+):
+    repo = MockLogRepository()
+    service = LoggingService(
+        log_repository=repo, template_repository=mock_template_repository
+    )
+    template = mock_template_repository.get()
+    exercises = template.workouts[0].exercises  # First workout
+    for exercise in exercises:  # Log a set for each exercise in the plan
+        service.log_set(exercise.name, 5, 100)
+    assert (
+        len(repo.all()) == 6
+    )  # One set event per exercise (3) + one started event per exercise (3)
+    # Now complete only one exercise
+    service.complete_exercise(exercises[0].name, {"soreness": 2})
+    assert len(repo.all()) == 7  # 6 + 1 completed event
+    workout_completion_result = service.complete_workout()
+    assert not is_successful(workout_completion_result)
+    assert "completed" in workout_completion_result.failure().args[0]
+    assert len(repo.all()) == 7  # No workout completed event should be logged
+
+
+def test_exercises_logged_after_one_workout_completed_will_have_incremented_workout_index(
+    mock_template_repository,
+):
+
+    repo = MockLogRepository()
+    service = LoggingService(
+        log_repository=repo, template_repository=mock_template_repository
+    )
+    template = mock_template_repository.get()
+    exercises = template.workouts[0].exercises  # First workout
+    for exercise in exercises:  # Log a set for each exercise in the plan
+        service.log_set(exercise.name, 5, 100)
+    assert (
+        len(repo.all()) == 6
+    )  # One set event per exercise (3) + one started event per exercise (3)
+    # Now complete all exercises
+    for exercise in exercises:
+        service.complete_exercise(exercise.name, {"soreness": 2})
+    assert len(repo.all()) == 9  # 6 + 3 completed events
+    # Now log a set for the first exercise again
+    first_exercise = template.workouts[1].exercises[0]  # Second workout
+    exercise = first_exercise.name
+
+    assert is_successful(service.log_set(first_exercise.name, 5, 100))
+    assert (
+        len(repo.all()) == 11
+    )  # Another set event should be logged + started event
+    last_event = repo.get()
+    assert last_event is not None
+    assert last_event.workout_index == 1  # Should be the next workout index
+    assert last_event.exercise == first_exercise.name

@@ -5,8 +5,6 @@ workouts:
     sets:
     - prescribed_reps: null
       prescribed_weight: null
-    - prescribed_reps: null
-      prescribed_weight: null
   - name: Bench press
     sets:
     - prescribed_reps: null

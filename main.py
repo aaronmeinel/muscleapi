@@ -45,7 +45,10 @@ def train():
     plan: MesocyclePlan = template.to_mesocycle_plan()
 
     exercises_planned = plan.get_current_workout_prescriptions(
-        logged_exercises, lambda weight_or_reps: None
+        logged_exercises,
+        lambda weight_or_reps: (
+            weight_or_reps * 1.025 if weight_or_reps else "?"
+        ),
     )
 
     for elem in text_progress_table(

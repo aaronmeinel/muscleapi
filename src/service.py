@@ -1,6 +1,5 @@
-from datetime import datetime
 from typing import Protocol
-from src.events import ExerciseCompleted, ExerciseStarted
+from src.events import ExerciseCompleted, ExerciseStarted, WorkoutCompleted
 from src.models import Set, Template
 from thefuzz import fuzz
 
@@ -90,7 +89,11 @@ class LoggingService:
         return 0
 
     def get_current_workout_index(self) -> int:
-        return 0
+        workouts_completed = filter(
+            lambda e: isinstance(e, WorkoutCompleted),
+            self.log_repository.all(),
+        )
+        return len(list(workouts_completed))
 
     def show_current_day(self):
         raise NotImplementedError()
@@ -102,13 +105,43 @@ class LoggingService:
         week_index = self.get_current_week_index()
         completed_event = ExerciseCompleted(
             name=exercise_name,
-            timestamp=datetime.now(),
             workout_index=workout_index,
             week_index=week_index,
             feedback=feedback,
         )
         self.log_repository.add(completed_event)
         return Success(f"Logged completion for exercise: {exercise_name}")
+
+    def complete_workout(self) -> Result[str, ValueError]:
+        workout_index = self.get_current_workout_index()
+        week_index = self.get_current_week_index()
+        log = self.log_repository.all()
+        exercises_in_template = [
+            ex.name for ex in self.template.workouts[workout_index].exercises
+        ]
+        completed_exercises = {
+            e.name
+            for e in log
+            if isinstance(e, ExerciseCompleted)
+            and e.workout_index == workout_index
+            and e.week_index == week_index
+        }
+
+        missing_exercises = set(exercises_in_template) - completed_exercises
+        if missing_exercises:
+            return Failure(
+                ValueError(
+                    f"Cannot complete workout {workout_index} as the\
+                     following exercises are not yet completed: \
+                     {', '.join(missing_exercises)}"
+                )
+            )
+        completed_event = WorkoutCompleted(
+            workout_index=workout_index,
+            week_index=week_index,
+        )
+        self.log_repository.add(completed_event)
+        return Success(f"Logged completion for workout: {workout_index}")
 
 
 class PlanManagementService:
