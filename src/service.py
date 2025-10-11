@@ -103,6 +103,18 @@ class LoggingService:
     ) -> Result[str, ValueError]:
         workout_index = self.get_current_workout_index()
         week_index = self.get_current_week_index()
+        log = self.log_repository.all()
+        sets_performed = set(  # noqa
+            [s for s in log if getattr(s, "exercise", None) == exercise_name]
+        )
+        sets_todo = set(  # noqa
+            s
+            for s in filter(
+                lambda e: e.name == exercise_name,
+                self.template.workouts[workout_index].exercises,
+            )
+        )
+
         completed_event = ExerciseCompleted(
             exercise=exercise_name,
             workout_index=workout_index,

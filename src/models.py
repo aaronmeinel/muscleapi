@@ -10,7 +10,7 @@ from dataclasses import asdict
 from src.events import ExerciseCompleted
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class Set:
     """Represents a set of an exercise.
 

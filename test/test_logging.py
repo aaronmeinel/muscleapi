@@ -219,6 +219,25 @@ def test_log_exercise_completed(mock_template_repository):
     assert "already completed" in log_result.failure().args[0]
 
 
+def test_cant_complete_exercise_without_all_prescribed_sets_performed(
+    mock_template_repository,
+):
+    repo = MockLogRepository()
+    service = LoggingService(
+        log_repository=repo, template_repository=mock_template_repository
+    )
+
+    template = mock_template_repository.get()
+    exercises = template.workouts[0].exercises
+
+    exercise_name = exercises[0].name
+    completion_result = service.complete_exercise(
+        exercise_name, {"soreness": 2}
+    )
+    assert not is_successful(completion_result)
+    assert not repo.all()
+
+
 def test_log_workout_completed_happy_path(mock_template_repository):
     """When completing a workout, we need to ensure that all exercises in the workout are completed.
     If not, we should reject the completion request.
