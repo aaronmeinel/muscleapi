@@ -1,3 +1,4 @@
+from types import MappingProxyType
 from typing import Protocol
 from src.events import ExerciseCompleted, ExerciseStarted, WorkoutCompleted
 from src.models import Set, Template
@@ -79,7 +80,7 @@ class LoggingService:
                 exercise=exercise,
                 workout_index=workout_index,
                 week_index=week_index,
-                feedback={},
+                feedback=MappingProxyType({}),
             )
             self.log_repository.add(started_event)
         self.log_repository.add(payload)
@@ -99,13 +100,13 @@ class LoggingService:
         raise NotImplementedError()
 
     def complete_exercise(
-        self, exercise_name: str, feedback: dict
+        self, exercise_name: str, feedback: MappingProxyType
     ) -> Result[str, ValueError]:
         workout_index = self.get_current_workout_index()
         week_index = self.get_current_week_index()
         log = self.log_repository.all()
         sets_performed = set(  # noqa
-            [s for s in log if getattr(s, "exercise", None) == exercise_name]
+            s for s in log if getattr(s, "exercise", None) == exercise_name
         )
         sets_todo = set(  # noqa
             s

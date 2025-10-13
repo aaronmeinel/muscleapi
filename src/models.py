@@ -74,7 +74,7 @@ class SetPrescription:
 @dataclass(frozen=True)
 class Exercise:
     name: str
-    sets: Optional[list[SetPrescription]]
+    sets: Optional[tuple[SetPrescription, ...]]
 
     # Default to one set. Because an exercise without sets makes no sense.
     # Why would you add it to the template in the first place?
@@ -83,7 +83,7 @@ class Exercise:
 @dataclass(frozen=True)
 class Workout:
 
-    exercises: list[Exercise]
+    exercises: tuple[Exercise, ...]
     index: Optional[int] = None
 
     def is_complete(self, sets_performed: list[Set], week_index: int) -> bool:
@@ -101,7 +101,7 @@ class Workout:
 @dataclass(frozen=True)
 class Template:
     name: str
-    workouts: list[Workout]
+    workouts: tuple[Workout, ...]
 
     def to_yaml(self):
 
@@ -136,7 +136,7 @@ class Template:
 
 @dataclass(frozen=True)
 class Week:
-    workouts: list[Workout]
+    workouts: tuple[Workout, ...]
     index: int
 
     def is_complete(self, sets_performed: list[Set]) -> bool:

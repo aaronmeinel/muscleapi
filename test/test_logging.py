@@ -1,3 +1,4 @@
+from types import MappingProxyType
 from pytest import fixture
 
 from src.events import ExerciseCompleted, ExerciseStarted
@@ -13,6 +14,7 @@ class MockLogRepository(Repository):
         self.events = []
 
     def add(self, event):
+
         self.events.append(event)
 
     def all(self) -> list:
@@ -205,8 +207,9 @@ def test_log_exercise_completed(mock_template_repository):
         len(repo.all()) == 6
     )  # One set event per exercise (3) + one started event per exercise (3)
     exercise_name = exercises[0].name
+
     completion_result = service.complete_exercise(
-        exercise_name, {"soreness": 2}
+        exercise_name, MappingProxyType({"soreness": 2})
     )
     assert is_successful(completion_result)
     assert len(repo.all()) == 7  # One completed event should be logged
@@ -232,7 +235,7 @@ def test_cant_complete_exercise_without_all_prescribed_sets_performed(
 
     exercise_name = exercises[0].name
     completion_result = service.complete_exercise(
-        exercise_name, {"soreness": 2}
+        exercise_name, MappingProxyType({"soreness": 2})
     )
     assert not is_successful(completion_result)
     assert not repo.all()
@@ -259,7 +262,9 @@ def test_log_workout_completed_happy_path(mock_template_repository):
     )  # One set event per exercise (3) + one started event per exercise (3)
     # Now complete all exercises
     for exercise in exercises:
-        service.complete_exercise(exercise.name, {"soreness": 2})
+        service.complete_exercise(
+            exercise.name, MappingProxyType({"soreness": 2})
+        )
     assert len(repo.all()) == 9  # 6 + 3 completed events
     workout_completion_result = service.complete_workout()
     assert is_successful(workout_completion_result)
@@ -283,7 +288,9 @@ def test_log_workout_completed_reject_incomplete_workout(
         len(repo.all()) == 6
     )  # One set event per exercise (3) + one started event per exercise (3)
     # Now complete only one exercise
-    service.complete_exercise(exercises[0].name, {"soreness": 2})
+    service.complete_exercise(
+        exercises[0].name, MappingProxyType({"soreness": 2})
+    )
     assert len(repo.all()) == 7  # 6 + 1 completed event
     workout_completion_result = service.complete_workout()
     assert not is_successful(workout_completion_result)
@@ -308,7 +315,9 @@ def test_exercises_logged_after_one_workout_completed_will_have_incremented_work
     )  # One set event per exercise (3) + one started event per exercise (3)
     # Now complete all exercises
     for exercise in exercises:
-        service.complete_exercise(exercise.name, {"soreness": 2})
+        service.complete_exercise(
+            exercise.name, MappingProxyType({"soreness": 2})
+        )
     assert len(repo.all()) == 9  # 6 + 3 completed events
     # Complete the workout
     completion_result = service.complete_workout()
