@@ -50,22 +50,60 @@ def history():
 @app.command()
 def train():
     """Show today's training plan and progress (i.e. logged sets)."""
-    logged_exercises = log_repository.all()
+    all_events = log_repository.all()
 
-    template = template_repository.get()  # Assume just one template for now
+    # Filter to only exercise-level events (exclude WorkoutCompleted)
+    from src.events import ExerciseStarted, ExerciseCompleted
+    from src.models import Set
+
+    logged_exercises = [
+        e
+        for e in all_events
+        if isinstance(e, (Set, ExerciseStarted, ExerciseCompleted))
+    ]
+
+    template = template_repository.get()
     plan: MesocyclePlan = template.to_mesocycle_plan()
 
+    # Use domain methods to get current position
+    current_week_idx = plan.current_week_index(all_events)
+    current_workout_idx = plan.current_workout_index(all_events)
+
+    # Filter logged exercises to current week/workout only
+    todays_exercises = [
+        e
+        for e in logged_exercises
+        if e.week_index == current_week_idx
+        and e.workout_index == current_workout_idx
+    ]
+
+    # Get current workout prescriptions
+    current_workout = plan.current_workout(all_events)
+    if not current_workout:
+        rich.print("[yellow]No more workouts in plan![/yellow]")
+        return
+
     exercises_planned = plan.get_current_workout_prescriptions(
-        logged_exercises,
+        all_events,
         lambda weight_or_reps: (
             weight_or_reps * 1.025 if weight_or_reps else "?"
         ),
     )
 
     for elem in text_progress_table(
-        current_day_format(logged_exercises), exercises_planned
+        current_day_format(todays_exercises), exercises_planned
     ):
         rich.print(elem)
+
+
+@app.command()
+def finish_workout():
+    """Mark the current workout as completed."""
+    result = logging_service.complete_workout()
+    if is_successful(result):
+        rich.print(f"[green]{result.unwrap()}[/green]")
+    else:
+        rich.print(f"[red]{result.failure()}[/red]")
 
 
 if __name__ == "__main__":

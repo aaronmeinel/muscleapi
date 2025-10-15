@@ -96,14 +96,14 @@ class LoggingService:
         return Success(f"Logged set: {exercise} {reps} reps at {weight} kg")
 
     def get_current_week_index(self) -> int:
-        return 0
+        """Get current week index from domain model."""
+        plan = self.template.to_mesocycle_plan()
+        return plan.current_week_index(self.log_repository.all())
 
     def get_current_workout_index(self) -> int:
-        workouts_completed = filter(
-            lambda e: isinstance(e, WorkoutCompleted),
-            self.log_repository.all(),
-        )
-        return len(list(workouts_completed))
+        """Get current workout index from domain model."""
+        plan = self.template.to_mesocycle_plan()
+        return plan.current_workout_index(self.log_repository.all())
 
     def show_current_day(self):
         raise NotImplementedError()

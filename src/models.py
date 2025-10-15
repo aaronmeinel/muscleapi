@@ -3,11 +3,38 @@ from dataclasses import dataclass
 from datetime import datetime
 from numbers import Number
 from typing import Optional
-from toolz import first
+
 import yaml
 from dataclasses import asdict
+from pydantic import BaseModel, Field
 
-from src.events import ExerciseCompleted
+from src.events import WorkoutCompleted, ExerciseCompleted
+
+
+class ExerciseFeedback(BaseModel):
+    """Feedback collected after completing an exercise."""
+
+    joint_pain: int = Field(ge=0, le=10, description="Joint pain level (0-10)")
+    pump: int = Field(ge=0, le=10, description="Muscle pump level (0-10)")
+    workload: int = Field(ge=0, le=10, description="Perceived workload (0-10)")
+
+    class Config:
+        frozen = True
+
+
+class WorkoutFeedback(BaseModel):
+    """Feedback collected after completing a workout."""
+
+    difficulty: int = Field(
+        ge=0, le=10, description="Overall difficulty (0-10)"
+    )
+    energy_level: int = Field(ge=0, le=10, description="Energy level (0-10)")
+    notes: Optional[str] = Field(
+        None, max_length=500, description="Optional notes"
+    )
+
+    class Config:
+        frozen = True
 
 
 @dataclass(frozen=True, eq=True)
@@ -212,15 +239,13 @@ class MesocyclePlan:
         sets_performed: list[Set],
         progress_function: Callable[[Optional[Number]], Optional[Number]],
     ) -> dict[str, list[dict]]:
+        """Get prescriptions for the current
+        workout based on progression function."""
+        # Use the new navigation methods instead of the old first() logic
+        current_workout = self.current_workout(sets_performed)
 
-        current_week = first(
-            w for w in self.weeks if w.is_complete(sets_performed) is False
-        )
-        current_workout = first(
-            wo
-            for wo in current_week.workouts
-            if wo.is_complete(sets_performed, current_week.index) is False
-        )
+        if not current_workout:
+            return {}
 
         return {
             exercise.name: [
@@ -234,3 +259,89 @@ class MesocyclePlan:
             ]
             for exercise in current_workout.exercises
         }
+
+    def get_week(self, index: int) -> Optional[Week]:
+        """Get a specific week by index."""
+        if 0 <= index < len(self.weeks):
+            return self.weeks[index]
+        return None
+
+    def get_workout(
+        self, week_index: int, workout_index: int
+    ) -> Optional[Workout]:
+        """Get a specific workout by week and workout index."""
+        week = self.get_week(week_index)
+        if week and 0 <= workout_index < len(week.workouts):
+            return week.workouts[workout_index]
+        return None
+
+    def current_week_index(self, events: list) -> int:
+        """Calculate current week index from events.
+
+        Looks for the most recent week that has activity.
+        If all workouts in a week are complete, moves to next week.
+        """
+        if not events:
+            return 0
+
+        # Find all workout completions
+        completed_workouts = [
+            e for e in events if isinstance(e, WorkoutCompleted)
+        ]
+
+        if not completed_workouts:
+            # No workouts completed yet, we're in week 0
+            return 0
+
+        # Get the highest week index from completed workouts
+        max_week = max(w.week_index for w in completed_workouts)
+
+        # Check if all workouts in that week are complete
+        workouts_in_week = (
+            len(self.weeks[max_week].workouts)
+            if max_week < len(self.weeks)
+            else 0
+        )
+        completed_in_week = sum(
+            1 for w in completed_workouts if w.week_index == max_week
+        )
+
+        if completed_in_week >= workouts_in_week:
+            # All workouts in this week done, move to next
+            return min(max_week + 1, len(self.weeks) - 1)
+
+        return max_week
+
+    def current_workout_index(self, events: list) -> int:
+        """Calculate current workout index within the current week.
+
+        Returns the index of the next incomplete workout.
+        """
+        current_week = self.current_week_index(events)
+
+        # Find completed workouts in current week
+        completed_workouts = [
+            e
+            for e in events
+            if isinstance(e, WorkoutCompleted) and e.week_index == current_week
+        ]
+
+        if not completed_workouts:
+            return 0
+
+        # Get the highest completed workout index in current week
+        max_workout = max(w.workout_index for w in completed_workouts)
+
+        # Next workout is max + 1
+        week = self.get_week(current_week)
+        if week:
+            next_index = max_workout + 1
+            return min(next_index, len(week.workouts) - 1)
+
+        return 0
+
+    def current_workout(self, events: list) -> Optional[Workout]:
+        """Get the current workout based on event history."""
+        week_idx = self.current_week_index(events)
+        workout_idx = self.current_workout_index(events)
+        return self.get_workout(week_idx, workout_idx)

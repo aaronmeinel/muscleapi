@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from pydantic import BaseModel
-from src.events import ExerciseCompleted, ExerciseStarted
+from src.events import ExerciseCompleted, ExerciseStarted, WorkoutCompleted
 from src.models import Exercise, Set, SetPrescription, Template, Workout
 from src.service import Repository
 from pathlib import Path
@@ -43,7 +43,7 @@ class ExerciseCompletedAdapter(BaseModel):
 
 class CompletedWorkoutAdapter(BaseModel):
     timestamp: datetime
-    data: ExerciseCompleted  # noqa
+    data: WorkoutCompleted  # noqa  (was: ExerciseCompleted)
     model_class: str = "WorkoutCompleted"
 
     def to_domain(self):
@@ -118,6 +118,50 @@ class JSONRepository(Repository):
 
     def get_by_date(self, date) -> list[Set]:
         return [e for e in self.events if e.timestamp.date() == date.date()]
+
+    def get_completed_workouts(self) -> list:
+        """Get all WorkoutCompleted events."""
+        from src.events import WorkoutCompleted
+
+        return [e for e in self.events if isinstance(e, WorkoutCompleted)]
+
+    def get_completed_exercises(
+        self, week_index: int = None, workout_index: int = None
+    ) -> list:
+        """Get ExerciseCompleted events,
+        optionally filtered by week/workout."""
+        from src.events import ExerciseCompleted
+
+        events = [e for e in self.events if isinstance(e, ExerciseCompleted)]
+
+        if week_index is not None:
+            events = [e for e in events if e.week_index == week_index]
+
+        if workout_index is not None:
+            events = [e for e in events if e.workout_index == workout_index]
+
+        return events
+
+    def get_sets_for_exercise(
+        self,
+        exercise_name: str,
+        week_index: int = None,
+        workout_index: int = None,
+    ) -> list:
+        """Get all Set events for a specific exercise."""
+        sets = [
+            e
+            for e in self.events
+            if isinstance(e, Set) and e.exercise == exercise_name
+        ]
+
+        if week_index is not None:
+            sets = [s for s in sets if s.week_index == week_index]
+
+        if workout_index is not None:
+            sets = [s for s in sets if s.workout_index == workout_index]
+
+        return sets
 
 
 #######################################################
