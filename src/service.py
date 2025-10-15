@@ -106,16 +106,26 @@ class LoggingService:
         week_index = self.get_current_week_index()
         log = self.log_repository.all()
         sets_performed = set(  # noqa
-            s for s in log if getattr(s, "exercise", None) == exercise_name
+            s.exercise
+            for s in log
+            if getattr(s, "exercise", None) == exercise_name
         )
         sets_todo = set(  # noqa
-            s
+            s.name
             for s in filter(
                 lambda e: e.name == exercise_name,
                 self.template.workouts[workout_index].exercises,
             )
         )
-
+        sets_not_done = sets_todo - sets_performed
+        if sets_not_done:
+            return Failure(
+                ValueError(
+                    f"Cannot complete exercise {exercise_name} as the\
+                     following sets are not yet completed: \
+                     {', '.join(str(s) for s in sets_not_done)}"
+                )
+            )
         completed_event = ExerciseCompleted(
             exercise=exercise_name,
             workout_index=workout_index,

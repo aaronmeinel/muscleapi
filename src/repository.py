@@ -128,16 +128,16 @@ class JSONRepository(Repository):
 
 class ExerciseReadModel(BaseModel):
     name: str
-    sets: list[SetPrescription]
+    sets: tuple[SetPrescription]
 
 
 class WorkoutReadModel(BaseModel):
-    exercises: list[dict]
+    exercises: tuple[dict]
 
 
 class TemplateReadModel(BaseModel):
     name: str
-    workouts: list[WorkoutReadModel]
+    workouts: tuple[WorkoutReadModel]
 
 
 class YAMLTemplateRepository(Repository):

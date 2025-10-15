@@ -111,6 +111,7 @@ def test_show_current_day(mock_template_repository):
                 "prescribed_reps": 11,  # Should be the same as in exercises_planned
                 "prescribed_weight": 100,  # We store this here for prediction purposes, but this is not used in the UI
                 "started": True,
+                "completed": False,
             },
         ],
         "Bench press": [
@@ -120,6 +121,7 @@ def test_show_current_day(mock_template_repository):
                 "prescribed_reps": 12,
                 "prescribed_weight": 100,
                 "started": True,
+                "completed": False,
             }
         ],
     }
@@ -262,9 +264,10 @@ def test_log_workout_completed_happy_path(mock_template_repository):
     )  # One set event per exercise (3) + one started event per exercise (3)
     # Now complete all exercises
     for exercise in exercises:
-        service.complete_exercise(
+        completed = service.complete_exercise(
             exercise.name, MappingProxyType({"soreness": 2})
         )
+        assert is_successful(completed)
     assert len(repo.all()) == 9  # 6 + 3 completed events
     workout_completion_result = service.complete_workout()
     assert is_successful(workout_completion_result)

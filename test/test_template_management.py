@@ -43,15 +43,30 @@ def test_yaml_raw_roundtrip(tmp_path, sample_template):
                 "exercises": [
                     {
                         "name": "Squat",
-                        "sets": [{"prescribed_reps": None, "prescribed_weight": None}],
+                        "sets": [
+                            {
+                                "prescribed_reps": None,
+                                "prescribed_weight": None,
+                            }
+                        ],
                     },
                     {
                         "name": "Bench press",
-                        "sets": [{"prescribed_reps": None, "prescribed_weight": None}],
+                        "sets": [
+                            {
+                                "prescribed_reps": None,
+                                "prescribed_weight": None,
+                            }
+                        ],
                     },
                     {
                         "name": "Deadlift",
-                        "sets": [{"prescribed_reps": None, "prescribed_weight": None}],
+                        "sets": [
+                            {
+                                "prescribed_reps": None,
+                                "prescribed_weight": None,
+                            }
+                        ],
                     },
                 ],
                 "index": None,
@@ -60,15 +75,30 @@ def test_yaml_raw_roundtrip(tmp_path, sample_template):
                 "exercises": [
                     {
                         "name": "Squat",
-                        "sets": [{"prescribed_reps": None, "prescribed_weight": None}],
+                        "sets": [
+                            {
+                                "prescribed_reps": None,
+                                "prescribed_weight": None,
+                            }
+                        ],
                     },
                     {
                         "name": "Pushup",
-                        "sets": [{"prescribed_reps": None, "prescribed_weight": None}],
+                        "sets": [
+                            {
+                                "prescribed_reps": None,
+                                "prescribed_weight": None,
+                            }
+                        ],
                     },
                     {
                         "name": "Pullup",
-                        "sets": [{"prescribed_reps": None, "prescribed_weight": None}],
+                        "sets": [
+                            {
+                                "prescribed_reps": None,
+                                "prescribed_weight": None,
+                            }
+                        ],
                     },
                 ],
                 "index": None,
@@ -100,22 +130,22 @@ def test_yaml_repository_roundtrip(tmp_path, sample_template):
 
 
 def test_load_one_workout_from_mesocycleplan_has_correct_format_for_command():
-    workouts = [
+    workouts = (
         Workout(
-            exercises=[
-                Exercise(name="squat", sets=[SetPrescription()]),
-                Exercise(name="bench press", sets=[SetPrescription()]),
-            ],
+            exercises=(
+                Exercise(name="squat", sets=(SetPrescription(),)),
+                Exercise(name="bench press", sets=(SetPrescription(),)),
+            ),
             index=0,
         ),
         Workout(
-            exercises=[
-                Exercise(name="deadlift", sets=[SetPrescription()]),
-                Exercise(name="pull ups", sets=[SetPrescription()]),
-            ],
+            exercises=(
+                Exercise(name="deadlift", sets=(SetPrescription(),)),
+                Exercise(name="pull ups", sets=(SetPrescription(),)),
+            ),
             index=1,
         ),
-    ]
+    )
     weeks = [Week(index=i, workouts=workouts) for i in range(2)]
     plan = MesocyclePlan(template_name="5/3/1", weeks=weeks)
     # We're in week 0.
@@ -158,22 +188,22 @@ def test_load_one_workout_from_mesocycleplan_has_correct_format_for_command():
 
 
 def test_second_week_has_prescriptions_after_complete_first_week():
-    workouts = [
+    workouts = (
         Workout(
-            exercises=[
-                Exercise(name="squat", sets=[SetPrescription()]),
-                Exercise(name="bench press", sets=[SetPrescription()]),
-            ],
+            exercises=(
+                Exercise(name="squat", sets=(SetPrescription(),)),
+                Exercise(name="bench press", sets=(SetPrescription(),)),
+            ),
             index=0,
         ),
         Workout(
-            exercises=[
-                Exercise(name="deadlift", sets=[SetPrescription()]),
-                Exercise(name="pull ups", sets=[SetPrescription()]),
-            ],
+            exercises=(
+                Exercise(name="deadlift", sets=(SetPrescription(),)),
+                Exercise(name="pull ups", sets=(SetPrescription(),)),
+            ),
             index=1,
         ),
-    ]
+    )
     weeks = [Week(index=i, workouts=workouts) for i in range(3)]
     plan = MesocyclePlan(template_name="some plan", weeks=weeks)
 
