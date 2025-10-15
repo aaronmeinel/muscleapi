@@ -1,7 +1,9 @@
 from types import MappingProxyType
 from typing import Protocol
+from datetime import datetime
 from src.events import ExerciseCompleted, ExerciseStarted, WorkoutCompleted
 from src.models import Set, Template
+from src.domain import ExerciseSession, WorkoutSession
 from thefuzz import fuzz
 
 from returns.result import Result, Success, Failure
@@ -53,36 +55,43 @@ class LoggingService:
         week_index = self.get_current_week_index()
         workout_index = self.get_current_workout_index()
         log = self.log_repository.all()
-        try:
-            payload = Set.create_safe(
-                log=log,
-                exercise=exercise,
-                reps=reps,
-                weight=weight,
-                week_index=week_index,
-                workout_index=workout_index,
-            )
-        except ValueError as e:
-            return Failure(e)
 
-        is_first_set = not any(
-            map(
-                lambda e: isinstance(e, Set)
-                and e.workout_index == workout_index
-                and e.week_index == week_index
-                and e.exercise == exercise,
-                log,
-            )
+        # Use domain aggregate to encapsulate state logic
+        exercise_session = ExerciseSession(
+            exercise_name=exercise,
+            week_index=week_index,
+            workout_index=workout_index,
+            events=log,
         )
 
-        if is_first_set:
+        # Check if we can log a set
+        if not exercise_session.can_log_set():
+            return Failure(
+                ValueError(
+                    f"Cannot log set for exercise {exercise} in workout\
+                {workout_index} week {week_index} - exercise already completed"
+                )
+            )
+
+        # If this is the first set, log an ExerciseStarted event
+        if exercise_session.is_first_set:
             started_event = ExerciseStarted(
                 exercise=exercise,
                 workout_index=workout_index,
                 week_index=week_index,
-                feedback=MappingProxyType({}),
+                feedback={},
             )
             self.log_repository.add(started_event)
+
+        # Create and log the set
+        payload = Set(
+            exercise=exercise,
+            reps=reps,
+            weight=weight,
+            timestamp=datetime.now(),
+            week_index=week_index,
+            workout_index=workout_index,
+        )
         self.log_repository.add(payload)
         return Success(f"Logged set: {exercise} {reps} reps at {weight} kg")
 
@@ -105,32 +114,50 @@ class LoggingService:
         workout_index = self.get_current_workout_index()
         week_index = self.get_current_week_index()
         log = self.log_repository.all()
-        sets_performed = set(  # noqa
-            s.exercise
-            for s in log
-            if getattr(s, "exercise", None) == exercise_name
+
+        # Use domain aggregate to check if exercise can be completed
+        exercise_session = ExerciseSession(
+            exercise_name=exercise_name,
+            week_index=week_index,
+            workout_index=workout_index,
+            events=log,
         )
-        sets_todo = set(  # noqa
-            s.name
-            for s in filter(
-                lambda e: e.name == exercise_name,
-                self.template.workouts[workout_index].exercises,
-            )
+
+        # Get required sets from template
+        current_exercise = next(
+            (
+                ex
+                for ex in self.template.workouts[workout_index].exercises
+                if ex.name == exercise_name
+            ),
+            None,
         )
-        sets_not_done = sets_todo - sets_performed
-        if sets_not_done:
+
+        if not current_exercise:
             return Failure(
                 ValueError(
-                    f"Cannot complete exercise {exercise_name} as the\
-                     following sets are not yet completed: \
-                     {', '.join(str(s) for s in sets_not_done)}"
+                    f"Exercise {exercise_name} not found in workout {workout_index}"  # noqa
                 )
             )
+
+        required_sets = (
+            len(current_exercise.sets) if current_exercise.sets else 1
+        )
+
+        if not exercise_session.can_complete(required_sets):
+            sets_performed = len(exercise_session.sets)
+            return Failure(
+                ValueError(
+                    f"Cannot complete exercise {exercise_name} as only\
+                     {sets_performed} of {required_sets} sets have been completed"  # noqa
+                )
+            )
+
         completed_event = ExerciseCompleted(
             exercise=exercise_name,
             workout_index=workout_index,
             week_index=week_index,
-            feedback=feedback,
+            feedback=dict(feedback),
         )
         self.log_repository.add(completed_event)
         return Success(f"Logged completion for exercise: {exercise_name}")
@@ -139,26 +166,30 @@ class LoggingService:
         workout_index = self.get_current_workout_index()
         week_index = self.get_current_week_index()
         log = self.log_repository.all()
+
+        # Get exercise names from template
         exercises_in_template = [
             ex.name for ex in self.template.workouts[workout_index].exercises
         ]
-        completed_exercises = {
-            e.exercise
-            for e in log
-            if isinstance(e, ExerciseCompleted)
-            and e.workout_index == workout_index
-            and e.week_index == week_index
-        }
 
-        missing_exercises = set(exercises_in_template) - completed_exercises
-        if missing_exercises:
+        # Use domain aggregate to check if workout can be completed
+        workout_session = WorkoutSession(
+            week_index=week_index,
+            workout_index=workout_index,
+            exercise_names=exercises_in_template,
+            events=log,
+        )
+
+        if not workout_session.can_complete():
+            missing = workout_session.missing_exercises
             return Failure(
                 ValueError(
                     f"Cannot complete workout {workout_index} as the\
                      following exercises are not yet completed: \
-                     {', '.join(missing_exercises)}"
+                     {', '.join(missing)}"
                 )
             )
+
         completed_event = WorkoutCompleted(
             workout_index=workout_index,
             week_index=week_index,
