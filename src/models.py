@@ -104,8 +104,26 @@ class Template:
     workouts: tuple[Workout, ...]
 
     def to_yaml(self):
+        """Convert template to YAML,
+        converting tuples to lists for compatibility."""
 
-        return yaml.dump(asdict(self))
+        def convert_tuples_to_lists(obj):
+            """Recursively convert tuples to lists in nested structures."""
+            if isinstance(obj, tuple):
+                return [convert_tuples_to_lists(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {
+                    key: convert_tuples_to_lists(value)
+                    for key, value in obj.items()
+                }
+            elif isinstance(obj, list):
+                return [convert_tuples_to_lists(item) for item in obj]
+            else:
+                return obj
+
+        data = asdict(self)
+        data_with_lists = convert_tuples_to_lists(data)
+        return yaml.dump(data_with_lists)
 
     def to_mesocycle_plan(self) -> "MesocyclePlan":
         weeks = [

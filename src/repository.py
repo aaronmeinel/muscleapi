@@ -128,16 +128,16 @@ class JSONRepository(Repository):
 
 class ExerciseReadModel(BaseModel):
     name: str
-    sets: tuple[SetPrescription]
+    sets: list[SetPrescription]
 
 
 class WorkoutReadModel(BaseModel):
-    exercises: tuple[dict]
+    exercises: list[dict]
 
 
 class TemplateReadModel(BaseModel):
     name: str
-    workouts: tuple[WorkoutReadModel]
+    workouts: list[WorkoutReadModel]
 
 
 class YAMLTemplateRepository(Repository):
@@ -175,27 +175,43 @@ class YAMLTemplateRepository(Repository):
                     ExerciseReadModel(**ex)
                     for ex in getattr(workout, "exercises", [])
                 ]
-                exercises = [
-                    Exercise(name=ex.name, sets=ex.sets)
+                exercises = tuple(  # Convert list to tuple
+                    Exercise(
+                        name=ex.name, sets=tuple(ex.sets) if ex.sets else None
+                    )  # Convert sets to tuple
                     for ex in exercise_data
-                ]
+                )
                 workouts.append(Workout(exercises=exercises))
-            templates.append(Template(name=read_model.name, workouts=workouts))
+            templates.append(
+                Template(name=read_model.name, workouts=tuple(workouts))
+            )  # Convert workouts to tuple
         return templates
 
     def add(self, template: Template):
         self.templates.append(template)
         with open(self.filepath, "w") as f:
             data = [
-                TemplateReadModel(
-                    name=t.name,
-                    workouts=[
-                        WorkoutReadModel(
-                            exercises=[{"name": ex.name} for ex in w.exercises]
-                        )
+                {
+                    "name": t.name,
+                    "workouts": [
+                        {
+                            "exercises": [
+                                {
+                                    "name": ex.name,
+                                    "sets": [
+                                        {
+                                            "prescribed_reps": s.prescribed_reps,  # noqa
+                                            "prescribed_weight": s.prescribed_weight,  # noqa
+                                        }
+                                        for s in (ex.sets if ex.sets else [])
+                                    ],
+                                }
+                                for ex in w.exercises
+                            ]
+                        }
                         for w in t.workouts
                     ],
-                ).dict()
+                }
                 for t in self.templates
             ]
             yaml.dump(data, f)
