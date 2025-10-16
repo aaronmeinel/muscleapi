@@ -203,37 +203,6 @@ class MesocyclePlan:
             return 0
         return len(self.weeks[0].workouts)
 
-    def get_current_week_index(self, sets_performed: list[Set]) -> int:
-        """Returns the index of the current week based on sets performed.
-
-        The current week is the closest week that contains incomplete workouts.
-        These again are identified by the 'missing' sets.
-        Because the set events carry an index
-        of the week and workout they belong to,
-        we can use that to determine the current week.
-        So if the last set has week_index 0
-        and the week plan is completed with that,
-        we're in week 1 now.
-
-        """
-        return max((s.week_index for s in sets_performed), default=-1) + 1
-
-    def get_current_workout_index(self, sets_performed: list[Set]) -> int:
-        """Returns the index of the current workout based on sets performed.
-
-        The current workout is the closest
-        workout that contains incomplete exercises
-        """
-        current_week_index = self.get_current_week_index(sets_performed)
-        return max(
-            (
-                s.workout_index
-                for s in sets_performed
-                if s.week_index == current_week_index
-            ),
-            default=-1,
-        )
-
     def get_current_workout_prescriptions(
         self,
         sets_performed: list[Set],
