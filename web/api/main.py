@@ -10,8 +10,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
+from pathlib import Path
+import rich
+import sys
 
-import uvicorn
 
 from src.domain import ExerciseSession
 from src.repository import JSONRepository, YAMLTemplateRepository
@@ -44,9 +46,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize repositories and services with absolute paths
-events_path = "events.json"
-template_path = "template.yaml"
+# Initialize repositories and services
+# Paths are relative to where the server is run from (project root)
+project_root = Path.cwd()  # Assumes run from project root
+events_path = project_root / "events.json"
+template_path = project_root / "template.yaml"
 
 log_repo = JSONRepository(str(events_path))
 template_repo = YAMLTemplateRepository(str(template_path))
@@ -313,5 +317,8 @@ async def get_template():
 
 
 if __name__ == "__main__":
-
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    rich.print(
+        "⚠️  Please use 'python run_server.py' from project root instead"
+    )
+    rich.print("   or: uv run python run_server.py")
+    sys.exit(1)
