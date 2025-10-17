@@ -24,6 +24,11 @@ from src.events import (
     ExerciseCompleted,
     WorkoutCompleted,
 )
+from src.service.prescription import (
+    get_prescriptions_for_workout,
+    feedback_based_progression,
+    Prescription,
+)
 
 
 app = FastAPI(
@@ -40,6 +45,8 @@ app.add_middleware(
         "http://localhost:4173",  # SvelteKit preview
         "http://127.0.0.1:5173",
         "http://127.0.0.1:4173",
+        "http://localhost:5174",  # Alternative port
+        "http://127.0.0.1:5174",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -127,6 +134,7 @@ async def health_check():
         "services": {
             "logging": "ok",
             "template": "ok",
+            "prescription": "ok",
         },
     }
 
@@ -147,13 +155,36 @@ async def get_current_workout():
                 status_code=404, detail="No current workout found"
             )
 
-        # Get prescriptions
-        exercises_planned = plan.get_current_workout_prescriptions(
-            events, lambda x: round(x * 1.025, 1) if x else None
+        # Get baseline prescriptions from template
+        baseline_prescriptions = {}
+        for exercise in current_workout.exercises:
+            baseline_prescriptions[exercise.name] = [
+                Prescription(
+                    prescribed_reps=s.prescribed_reps,
+                    prescribed_weight=s.prescribed_weight,
+                )
+                for s in exercise.sets
+            ]
+
+        # Get all sets and feedback for intelligent prescription
+        # IMPORTANT: We include ALL historical sets, even from current workout.
+        # The prescription service filters to only use COMPLETED exercises,
+        # so in-progress sets will be ignored automatically.
+        all_sets = [e for e in events if isinstance(e, Set)]
+        all_feedback = [e for e in events if isinstance(e, ExerciseCompleted)]
+
+        # Use prescription service to calculate adjusted prescriptions
+        # Excludes current workout completions to keep prescriptions stable
+        exercises_planned = get_prescriptions_for_workout(
+            workout_exercises=baseline_prescriptions,
+            all_sets=all_sets,
+            all_feedback=all_feedback,
+            current_week_idx=week_idx,
+            current_workout_idx=workout_idx,
+            strategy=feedback_based_progression,
         )
 
         # Build exercise info with logged sets
-
         exercise_infos = []
         for exercise_name, prescriptions in exercises_planned.items():
             # Get state for this exercise
@@ -170,11 +201,20 @@ async def get_current_workout():
                 for s in session.sets
             ]
 
+            # Convert Prescription objects to dicts for API
+            prescription_dicts = [
+                {
+                    "prescribed_reps": p.prescribed_reps,
+                    "prescribed_weight": p.prescribed_weight,
+                }
+                for p in prescriptions
+            ]
+
             exercise_infos.append(
                 ExerciseInfo(
                     name=exercise_name,
-                    prescribed_sets=prescriptions,
-                    logged_sets=logged_sets_info,  # Now a list of sets
+                    prescribed_sets=prescription_dicts,
+                    logged_sets=logged_sets_info,
                     is_started=session.is_started,
                     is_completed=session.is_completed,
                 )

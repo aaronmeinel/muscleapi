@@ -29,25 +29,24 @@
                         </span>
                         <span class="text-xl">✅</span>
                     {:else}
-                        <!-- Input form for pending set - single line -->
+                        <!-- Input form for pending set - single line with prescribed values shown -->
                         <span class="font-semibold min-w-[60px]">Set {i + 1}</span>
                         <input 
                             type="number" 
                             bind:value={setInputs[i].reps}
-                            class="input input-bordered input-sm w-20"
-                            placeholder="Reps"
+                            class="input input-bordered input-sm w-20 font-semibold"
                             min="0"
                             step="1"
                         />
-                        <span class="text-sm">×</span>
+                        <span class="text-sm opacity-60">reps ×</span>
                         <input 
                             type="number" 
                             bind:value={setInputs[i].weight}
-                            class="input input-bordered input-sm w-24"
-                            placeholder="kg"
+                            class="input input-bordered input-sm w-24 font-semibold"
                             min="0"
                             step="0.5"
                         />
+                        <span class="text-sm opacity-60">kg</span>
                         <button 
                             class="btn btn-primary btn-sm ml-auto"
                             on:click={() => onCompleteSet(i)}

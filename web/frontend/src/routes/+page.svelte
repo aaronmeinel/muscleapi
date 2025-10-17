@@ -61,8 +61,8 @@
                     for (let i = exercise.logged_sets.length; i < exercise.prescribed_sets.length; i++) {
                         const prescribed = exercise.prescribed_sets[i];
                         setInputs[exercise.name][i] = {
-                            weight: prescribed.prescribed_weight ?? 0,
-                            reps: prescribed.prescribed_reps ?? 0
+                            weight: prescribed.prescribed_weight,
+                            reps: prescribed.prescribed_reps
                         };
                     }
                 });
