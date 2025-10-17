@@ -20,7 +20,7 @@
         
         <div class="space-y-2">
             {#each exercise.prescribed_sets as prescribed, i}
-                <div class="flex items-center gap-3 p-3 rounded-lg bg-base-200" class:bg-success={i < exercise.logged_sets.length} class:bg-opacity-20={i < exercise.logged_sets.length}>
+                <div class="flex items-center gap-3 p-3 rounded-md bg-base-200" class:bg-success={i < exercise.logged_sets.length} class:bg-opacity-20={i < exercise.logged_sets.length}>
                     {#if i < exercise.logged_sets.length}
                         <!-- Completed set - single line -->
                         <span class="font-semibold min-w-[60px]">Set {i + 1}</span>

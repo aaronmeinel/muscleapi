@@ -164,28 +164,26 @@
     }
 </script>
 
-<main class="container mx-auto max-w-2xl p-4">
-    <h1 class="text-4xl font-bold text-center mb-6 text-primary">💪 Muscle API</h1>
+<main class="container mx-auto max-w-2xl p-4 py-8">
+    <!-- Simple header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-semibold mb-2">Workout Tracker</h1>
+        {#if workout}
+            <p class="text-sm opacity-60">Week {workout.week_index + 1} · Workout {workout.workout_index + 1}</p>
+        {/if}
+    </div>
 
     {#if loading}
-        <div class="flex justify-center">
+        <div class="flex justify-center py-12">
             <span class="loading loading-spinner loading-lg"></span>
         </div>
     {:else if error}
-        <div class="alert alert-error">
+        <div class="alert alert-error mb-4">
             <span>{error}</span>
             <button class="btn btn-sm" on:click={loadWorkout}>Retry</button>
         </div>
     {:else if workout}
-        <div class="hero bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-6 text-white">
-            <div class="hero-content text-center py-8">
-                <div>
-                    <h2 class="text-3xl font-bold">Week {workout.week_index + 1}, Workout {workout.workout_index + 1}</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="space-y-6">
+        <div class="space-y-4">
             {#each workout.exercises as exercise}
                 <ExerciseCard 
                     {exercise}
@@ -197,8 +195,8 @@
         </div>
 
         {#if canCompleteWorkout()}
-            <button class="btn btn-success btn-lg btn-block mt-8 shadow-lg" on:click={completeWorkout}>
-                🎉 Complete Workout
+            <button class="btn btn-success btn-block mt-6" on:click={completeWorkout}>
+                Complete Workout
             </button>
         {/if}
     {/if}
