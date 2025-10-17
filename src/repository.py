@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from src.events import ExerciseCompleted, ExerciseStarted, WorkoutCompleted
 from src.models import Exercise, Set, SetPrescription, Template, Workout
-from src.service import Repository
+from src.service.logging import Repository
 from pathlib import Path
 import yaml
 

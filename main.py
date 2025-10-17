@@ -4,7 +4,7 @@ from src.models import MesocyclePlan
 from src.presentation import current_day_format, text_progress_table
 from src.repository import JSONRepository
 from src.repository import YAMLTemplateRepository
-from src.service import LoggingService
+from src.service.logging import LoggingService
 import rich
 
 

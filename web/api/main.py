@@ -17,7 +17,7 @@ import sys
 
 from src.domain import ExerciseSession
 from src.repository import JSONRepository, YAMLTemplateRepository
-from src.service import LoggingService
+from src.service.logging import LoggingService
 from src.models import Set
 from src.events import (
     ExerciseStarted,

@@ -1,5 +1,5 @@
 from types import MappingProxyType
-from typing import Protocol
+
 from datetime import datetime
 from src.events import ExerciseCompleted, ExerciseStarted, WorkoutCompleted
 from src.models import Set, Template, MesocyclePlan
@@ -7,12 +7,7 @@ from src.domain import ExerciseSession, WorkoutSession
 from thefuzz import fuzz
 
 from returns.result import Result, Success, Failure
-
-
-class Repository(Protocol):
-    def add(self, event): ...
-    def all(self) -> list: ...
-    def get(self) -> object: ...
+from src.protocols import Repository
 
 
 class LoggingService:
@@ -218,22 +213,3 @@ class LoggingService:
         week_idx = self.plan.current_week_index(events)
         workout_idx = self.plan.current_workout_index(events)
         return week_idx, workout_idx
-
-
-class PlanManagementService:
-    repository: Repository
-
-    def __init__(self, repository: Repository):
-        self.repository = repository
-
-    def create_template(self, name: str, exercises: list[str]):
-        self.repository.add({"name": name, "exercises": exercises})
-
-    def get_plan(self, name: str):
-        pass
-
-    def list_plans(self):
-        pass
-
-    def list_exercises(self):
-        pass
