@@ -18,64 +18,43 @@
             {/if}
         </h3>
         
-        <div class="space-y-3">
+        <div class="space-y-2">
             {#each exercise.prescribed_sets as prescribed, i}
-                <div class="card bg-base-200" class:bg-success={i < exercise.logged_sets.length} class:bg-opacity-20={i < exercise.logged_sets.length}>
-                    <div class="card-body p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="font-semibold">Set {i + 1}</span>
-                            {#if i < exercise.logged_sets.length}
-                                <span class="text-2xl">✅</span>
-                            {/if}
-                        </div>
-
-                        {#if i < exercise.logged_sets.length}
-                            <!-- Completed set -->
-                            <div class="text-lg font-bold text-success">
-                                {exercise.logged_sets[i].reps} reps × {exercise.logged_sets[i].weight} kg
-                            </div>
-                        {:else}
-                            <!-- Input form for pending set -->
-                            <div class="form-control space-y-2">
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="label py-1">
-                                            <span class="label-text font-semibold">Reps</span>
-                                        </label>
-                                        <input 
-                                            type="number" 
-                                            bind:value={setInputs[i].reps}
-                                            class="input input-bordered w-full"
-                                            min="0"
-                                            step="1"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label class="label py-1">
-                                            <span class="label-text font-semibold">Weight (kg)</span>
-                                        </label>
-                                        <input 
-                                            type="number" 
-                                            bind:value={setInputs[i].weight}
-                                            class="input input-bordered w-full"
-                                            min="0"
-                                            step="0.5"
-                                        />
-                                    </div>
-                                </div>
-                                <button 
-                                    class="btn btn-primary btn-sm"
-                                    on:click={() => onCompleteSet(i)}
-                                >
-                                    ✓ Complete Set
-                                </button>
-                            </div>
-                        {/if}
-
-                        <div class="text-xs text-base-content opacity-60 mt-2">
-                            Prescribed: {prescribed.prescribed_reps ?? '?'} reps × {prescribed.prescribed_weight ?? '?'} kg
-                        </div>
-                    </div>
+                <div class="flex items-center gap-3 p-3 rounded-lg bg-base-200" class:bg-success={i < exercise.logged_sets.length} class:bg-opacity-20={i < exercise.logged_sets.length}>
+                    {#if i < exercise.logged_sets.length}
+                        <!-- Completed set - single line -->
+                        <span class="font-semibold min-w-[60px]">Set {i + 1}</span>
+                        <span class="text-lg font-bold text-success flex-grow">
+                            {exercise.logged_sets[i].reps} reps × {exercise.logged_sets[i].weight} kg
+                        </span>
+                        <span class="text-xl">✅</span>
+                    {:else}
+                        <!-- Input form for pending set - single line -->
+                        <span class="font-semibold min-w-[60px]">Set {i + 1}</span>
+                        <input 
+                            type="number" 
+                            bind:value={setInputs[i].reps}
+                            class="input input-bordered input-sm w-20"
+                            placeholder="Reps"
+                            min="0"
+                            step="1"
+                        />
+                        <span class="text-sm">×</span>
+                        <input 
+                            type="number" 
+                            bind:value={setInputs[i].weight}
+                            class="input input-bordered input-sm w-24"
+                            placeholder="kg"
+                            min="0"
+                            step="0.5"
+                        />
+                        <button 
+                            class="btn btn-primary btn-sm ml-auto"
+                            on:click={() => onCompleteSet(i)}
+                        >
+                            ✓
+                        </button>
+                    {/if}
                 </div>
             {/each}
         </div>
