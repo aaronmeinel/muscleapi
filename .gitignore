@@ -27,3 +27,22 @@ clj_frontend/node_modules/
 .lsp/
 web/frontend/.svelte-kit/
 clj_src/.cpcache
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+README.md
+events.json
+/node_modules/
+web/frontend/node_modules/
+.clj-kondo/
+clj_frontend/node_modules/
+.lsp/
+web/frontend/.svelte-kit/
+clj_src/.cpcache
