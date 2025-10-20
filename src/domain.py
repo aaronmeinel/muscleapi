@@ -7,7 +7,16 @@ and business rules for exercise sessions and workouts.
 from dataclasses import dataclass
 
 from src.models import Set
-from src.events import ExerciseStarted, ExerciseCompleted, WorkoutCompleted
+from src.events import (
+    Event,
+    ExerciseStarted,
+    ExerciseCompleted,
+    WorkoutCompleted,
+)
+
+
+from src.domain.state import exercise_state as _exercise_state
+from src.domain.state import can_log_set as _can_log_set
 
 
 @dataclass
@@ -16,43 +25,25 @@ class ExerciseSession:
 
     Encapsulates the state and business logic for tracking sets
     and completion status of an exercise within a workout.
+
+    Degraded to thin wrapper - will be removed in future.
     """
 
     exercise_name: str
     week_index: int
     workout_index: int
-    events: list  # All events from the log
+    events: list[Event]  # All events from the log
 
     def __post_init__(self):
-        """Build state from events after initialization."""
-        self._sets = []
-        self._started = False
-        self._completed = False
-
-        for event in self.events:
-            if isinstance(event, ExerciseStarted):
-                if (
-                    event.exercise == self.exercise_name
-                    and event.week_index == self.week_index
-                    and event.workout_index == self.workout_index
-                ):
-                    self._started = True
-
-            elif isinstance(event, ExerciseCompleted):
-                if (
-                    event.exercise == self.exercise_name
-                    and event.week_index == self.week_index
-                    and event.workout_index == self.workout_index
-                ):
-                    self._completed = True
-
-            elif isinstance(event, Set):
-                if (
-                    event.exercise == self.exercise_name
-                    and event.week_index == self.week_index
-                    and event.workout_index == self.workout_index
-                ):
-                    self._sets.append(event)
+        state = _exercise_state(
+            self.events,
+            self.exercise_name,
+            self.week_index,
+            self.workout_index,
+        )
+        self._started = state["started"]
+        self._completed = state["completed"]
+        self._sets = state["sets"]
 
     @property
     def is_started(self) -> bool:
