@@ -4,7 +4,7 @@ from pytest import fixture
 from src.events import ExerciseCompleted, ExerciseStarted
 from src.models import Set
 from src.presentation import current_day_format
-from src.service import LoggingService, Repository
+from src.service.logging import LoggingService, Repository
 from src.repository import JSONRepository
 from returns.pipeline import is_successful
 

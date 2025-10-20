@@ -10,3 +10,13 @@ wheels/
 .venv
 README.md
 events.json
+
+
+# npm stuff
+*/.svelte-kit/
+.svelte-kit/
+.vite/
+*/.vite/
+*/node_modules/
+node_modules/
+npm-debug.log*
