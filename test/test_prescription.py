@@ -6,8 +6,8 @@ from src.service.prescription import (
     feedback_based_progression,
     Prescription,
 )
-from src.domain import Set
-from src.events import ExerciseCompleted
+
+from src.events import ExerciseCompleted, SetLogged
 from datetime import datetime
 
 
@@ -61,7 +61,7 @@ def test_incomplete_exercise_does_not_affect_prescription():
 
     # Logged sets but no ExerciseCompleted event
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -69,7 +69,7 @@ def test_incomplete_exercise_does_not_affect_prescription():
             week_index=0,
             workout_index=0,
         ),
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -102,7 +102,7 @@ def test_completed_exercise_affects_next_workout():
 
     # Completed workout with 1 set
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -148,7 +148,7 @@ def test_workload_too_easy_adds_set_next_workout():
 
     # Completed workout with 1 set, rated as too easy
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -191,7 +191,7 @@ def test_workload_too_hard_removes_set_next_workout():
 
     # Completed workout with 3 sets, rated as too hard
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -199,7 +199,7 @@ def test_workload_too_hard_removes_set_next_workout():
             week_index=0,
             workout_index=0,
         ),
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -207,7 +207,7 @@ def test_workload_too_hard_removes_set_next_workout():
             week_index=0,
             workout_index=0,
         ),
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -248,7 +248,7 @@ def test_high_joint_pain_reduces_weight():
     ]
 
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -288,7 +288,7 @@ def test_multiple_completions_uses_latest():
 
     # First workout - too easy
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -297,7 +297,7 @@ def test_multiple_completions_uses_latest():
             workout_index=0,
         ),
         # Second workout - pushed limits
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=110.0,
@@ -348,7 +348,7 @@ def test_current_workout_in_progress_ignored():
 
     # Last completed workout
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -357,7 +357,7 @@ def test_current_workout_in_progress_ignored():
             workout_index=0,
         ),
         # Current workout (in progress) - should be ignored!
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=12,
             weight=120.0,
@@ -407,7 +407,7 @@ def test_different_exercises_independent():
 
     # Only Bench Press has history
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,
@@ -468,7 +468,7 @@ def test_static_progression_with_history():
     ]
 
     historical_sets = [
-        Set(
+        SetLogged(
             exercise="Bench Press",
             reps=10,
             weight=100.0,

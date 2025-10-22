@@ -10,8 +10,8 @@ The current in-progress workout does not influence prescriptions.
 
 from dataclasses import dataclass
 from typing import Optional, Callable
-from src.domain import Set
-from src.events import ExerciseCompleted
+
+from src.events import ExerciseCompleted, SetLogged
 
 
 @dataclass(frozen=True)
@@ -24,18 +24,25 @@ class Prescription:
 
 # Type alias for prescription strategy functions
 PrescriptionStrategy = Callable[
-    [str, list[Prescription], list[Set], list[ExerciseCompleted], int, int],
+    [
+        str,
+        list[Prescription],
+        list[SetLogged],
+        list[ExerciseCompleted],
+        int,
+        int,
+    ],
     list[Prescription],
 ]
 
 
 def _get_last_completed_performance(
     exercise_name: str,
-    historical_sets: list[Set],
+    historical_sets: list[SetLogged],
     feedback_history: list[ExerciseCompleted],
     current_week_idx: int | None = None,
     current_workout_idx: int | None = None,
-) -> tuple[list[Set] | None, ExerciseCompleted | None]:
+) -> tuple[list[SetLogged] | None, ExerciseCompleted | None]:
     """Get the most recent completed performance for an exercise.
 
     IMPORTANT: Excludes the current workout to maintain invariant that
@@ -87,7 +94,7 @@ def _get_last_completed_performance(
 def static_progression(
     exercise_name: str,
     baseline_sets: list[Prescription],
-    historical_sets: list[Set],
+    historical_sets: list[SetLogged],
     feedback_history: list[ExerciseCompleted],
     current_week_idx: int,
     current_workout_idx: int,
@@ -185,7 +192,7 @@ def _calculate_set_adjustment(workload: int) -> int:
 def feedback_based_progression(
     exercise_name: str,
     baseline_sets: list[Prescription],
-    historical_sets: list[Set],
+    historical_sets: list[SetLogged],
     feedback_history: list[ExerciseCompleted],
     current_week_idx: int,
     current_workout_idx: int,
@@ -258,7 +265,7 @@ def feedback_based_progression(
 
 def get_prescriptions_for_workout(
     workout_exercises: dict[str, list[Prescription]],
-    all_sets: list[Set],
+    all_sets: list[SetLogged],
     all_feedback: list[ExerciseCompleted],
     current_week_idx: int,
     current_workout_idx: int,

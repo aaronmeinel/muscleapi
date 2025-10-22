@@ -2,7 +2,8 @@ from datetime import datetime
 
 from pathlib import Path
 
-from src.repository import YAMLTemplateRepository
+
+from src import storage
 from src.models import (
     MesocyclePlan,
     Set,
@@ -115,18 +116,12 @@ def test_yaml_repository_roundtrip(tmp_path, sample_template):
 
     path.write_text(data)
 
-    class MockRepo(YAMLTemplateRepository):
-        def _read_file(self):
-            return path.read_text()
+    template = storage.load_template(path)
+    assert template
 
-    repo = MockRepo(tmp_path / "templates.yaml")
-
-    templates = repo.all()
-    assert templates
-    for template in templates:
-        assert isinstance(template, Template)
-        for exercise in template.workouts:
-            assert isinstance(exercise, Workout)
+    assert isinstance(template, Template)
+    for exercise in template.workouts:
+        assert isinstance(exercise, Workout)
 
 
 def test_load_one_workout_from_mesocycleplan_has_correct_format_for_command():

@@ -15,20 +15,20 @@ import rich
 import sys
 
 
-from src.domain import ExerciseSession
-from src.repository import JSONRepository, YAMLTemplateRepository
-from src.service.logging import LoggingService
 from src.models import Set
 from src.events import (
     ExerciseStarted,
     ExerciseCompleted,
     WorkoutCompleted,
 )
+from src.service.plan_management import 
+from src.service.logging import log_set
 from src.service.prescription import (
     get_prescriptions_for_workout,
     feedback_based_progression,
     Prescription,
 )
+from src.storage import append_events, load_events, load_template
 
 
 app = FastAPI(
@@ -55,13 +55,9 @@ app.add_middleware(
 
 # Initialize repositories and services
 # Paths are relative to where the server is run from (project root)
-project_root = Path.cwd()  # Assumes run from project root
-events_path = project_root / "events.json"
-template_path = project_root / "template.yaml"
-
-log_repo = JSONRepository(str(events_path))
-template_repo = YAMLTemplateRepository(str(template_path))
-logging_service = LoggingService(log_repo, template_repo)
+PROJECT_ROOT = Path.cwd()  # Assumes run from project root
+EVENTS_PATH = PROJECT_ROOT / "events.json"
+TEMPLATE_PATH = PROJECT_ROOT / "template.yaml"
 
 
 # Request/Response Models
@@ -230,15 +226,18 @@ async def get_current_workout():
 
 
 @app.post("/api/log-set", response_model=ApiResponse)
-async def log_set(request: LogSetRequest):
+async def log_set_endpoint(request: LogSetRequest):
     """Log a set for an exercise."""
-    result = logging_service.log_set(
-        request.exercise, request.reps, request.weight
+    events = load_events(EVENTS_PATH)
+    template = load_template(TEMPLATE_PATH)
+
+    result = log_set(
+        events, template, request.exercise, request.reps, request.weight
     )
 
-    # Convert Result type to API response
-
     if is_successful(result):
+        append_events(EVENTS_PATH, result.unwrap())
+
         return ApiResponse(success=True, message=result.unwrap())
     else:
         return ApiResponse(success=False, error=str(result.failure()))
@@ -278,57 +277,8 @@ async def complete_workout():
 @app.get("/api/history")
 async def get_history():
     """Get workout history (all logged events)."""
-    try:
-        events = log_repo.all()
-
-        # Convert events to serializable dicts
-
-        history = []
-        for event in events:
-            if isinstance(event, Set):
-                history.append(
-                    {
-                        "type": "set",
-                        "exercise": event.exercise,
-                        "reps": event.reps,
-                        "weight": event.weight,
-                        "timestamp": event.timestamp.isoformat(),
-                        "week_index": event.week_index,
-                        "workout_index": event.workout_index,
-                    }
-                )
-            elif isinstance(event, ExerciseStarted):
-                history.append(
-                    {
-                        "type": "exercise_started",
-                        "exercise": event.exercise,
-                        "week_index": event.week_index,
-                        "workout_index": event.workout_index,
-                    }
-                )
-            elif isinstance(event, ExerciseCompleted):
-                history.append(
-                    {
-                        "type": "exercise_completed",
-                        "exercise": event.exercise,
-                        "week_index": event.week_index,
-                        "workout_index": event.workout_index,
-                        "feedback": event.feedback,
-                    }
-                )
-            elif isinstance(event, WorkoutCompleted):
-                history.append(
-                    {
-                        "type": "workout_completed",
-                        "week_index": event.week_index,
-                        "workout_index": event.workout_index,
-                    }
-                )
-
-        return {"events": history}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    events = load_events(EVENTS_PATH)
+    return {"events": [e.model_dump() for e in events]}
 
 
 @app.get("/api/template")

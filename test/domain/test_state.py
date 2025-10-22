@@ -1,4 +1,3 @@
-import pytest
 from src.domain.state import (
     exercise_state,
     workout_state,
@@ -13,8 +12,6 @@ from src.events import (
     WorkoutCompleted,
 )
 from datetime import datetime
-
-# PORT EXISTING ExerciseSession TESTS
 
 
 def test_exercise_state_initial():

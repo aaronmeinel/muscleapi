@@ -1,215 +1,167 @@
-from types import MappingProxyType
-
-from datetime import datetime
-from src.events import ExerciseCompleted, ExerciseStarted, WorkoutCompleted
-from src.models import Set, Template, MesocyclePlan
-from src.domain import ExerciseSession, WorkoutSession
-from thefuzz import fuzz
-
+# src/service/logging.py (NEW FILE - pure functions)
 from returns.result import Result, Success, Failure
-from src.protocols import Repository
+from datetime import datetime
+from thefuzz import fuzz
+from src.domain.state import exercise_state, workout_state
+from src.events import (
+    Event,
+    ExerciseStarted,
+    SetLogged,
+    ExerciseCompleted,
+    WorkoutCompleted,
+)
+from src.models import Template
 
 
-class LoggingService:
-    log_repository: Repository
-    template_repository: Repository
-    # The idea here is that you're going to log against a template
-    # - anything else makes no sense,
-    # as you need that context to make sense of the logged sets.
-    template: Template
+def current_position(
+    events: list[Event], template: Template
+) -> tuple[int, int]:
+    """Calculate current (week_index, workout_index) from events."""
+    plan = template.to_mesocycle_plan()
+    week_idx = plan.current_week_index(events)
+    workout_idx = plan.current_workout_index(events)
+    return week_idx, workout_idx
 
-    def __init__(
-        self, log_repository: Repository, template_repository: Repository
-    ):
-        self.log_repository = log_repository
-        self.template_repository = template_repository
-        self.template = self.template_repository.get()
-        self._plan = None
 
-    @property
-    def plan(self) -> MesocyclePlan:
-        """Lazy-load and cache the mesocycle plan."""
-        if self._plan is None:
-            self._plan = self.template.to_mesocycle_plan()
-        return self._plan
+def suggest_exercise_name(exercise: str, names: list[str]) -> Result[str, str]:
 
-    def log_set(
-        self, exercise: str, reps: int, weight: float
-    ) -> Result[str, ValueError]:
-        exercise_names = self.template.get_exercise_names()
-        if exercise not in exercise_names:
-            match_rank = {
-                fuzz.ratio(exercise, name): name for name in exercise_names
-            }
-            best_match = match_rank.get(max(match_rank.keys()), None)
-            if best_match:
-                return Success(
-                    f"Exercise {exercise} not in {self.template.name}.\
-                    Did you mean {best_match}?"
-                )
-            else:
-                return Failure(
-                    ValueError(
-                        f"No match for {exercise} found in template\
-                          {self.template.name}.\
-                          Known exercises are: {', '.join(exercise_names)}"
-                    )
-                )
+    match_rank = {fuzz.ratio(exercise, name): name for name in names}
+    best_match_score = max(match_rank.keys())
+    if best_match_score == max(match_rank.keys()):
+        if best_match_score > 80:
+            best_match = match_rank[best_match_score]
+            return Failure(
+                f"Exercise '{exercise}' not in template. Did you mean '{best_match}'?"
+            )
+        return Failure(f"Unknown exercise: {exercise}")
 
-        week_index, workout_index = self._get_current_position()
-        log = self.log_repository.all()
 
-        # Use domain aggregate to encapsulate state logic
-        exercise_session = ExerciseSession(
-            exercise_name=exercise,
-            week_index=week_index,
-            workout_index=workout_index,
-            events=log,
+def log_set(
+    events: list[Event],
+    template: Template,
+    exercise: str,
+    reps: int,
+    weight: float,
+) -> Result[list[Event] | str, str]:
+    """
+    Pure business logic for logging a set.
+
+    Returns:
+        Success(new_events) if valid
+        Failure(error_message) if invalid
+    """
+    # Validate exercise exists
+    exercise_names = template.get_exercise_names()
+    if exercise not in exercise_names:
+        return suggest_exercise_name(exercise, exercise_names)
+
+    # Get current context
+    week, workout = current_position(events, template)
+
+    # Get current state
+    state = exercise_state(events, exercise, week, workout)
+
+    # Validate can log
+    if state["completed"]:
+        return Failure(
+            f"Cannot log set - exercise '{exercise}' already completed"
         )
 
-        # Check if we can log a set
-        if not exercise_session.can_log_set():
-            return Failure(
-                ValueError(
-                    f"Cannot log set for exercise {exercise} in workout\
-                {workout_index} week {week_index} - exercise already completed"
-                )
-            )
+    # Build new events
+    new_events: list[Event] = []
 
-        # If this is the first set, log an ExerciseStarted event
-        if exercise_session.is_first_set:
-            started_event = ExerciseStarted(
+    if not state["sets"]:  # First set
+        new_events.append(
+            ExerciseStarted(
                 exercise=exercise,
-                workout_index=workout_index,
-                week_index=week_index,
+                week_index=week,
+                workout_index=workout,
                 feedback={},
             )
-            self.log_repository.add(started_event)
+        )
 
-        # Create and log the set
-        payload = Set(
+    new_events.append(
+        SetLogged(
             exercise=exercise,
             reps=reps,
             weight=weight,
             timestamp=datetime.now(),
-            week_index=week_index,
-            workout_index=workout_index,
+            week_index=week,
+            workout_index=workout,
         )
-        self.log_repository.add(payload)
-        return Success(f"Logged set: {exercise} {reps} reps at {weight} kg")
+    )
 
-    def get_current_week_index(self) -> int:
-        """Get current week index from domain model."""
-        plan = self.template.to_mesocycle_plan()
-        return plan.current_week_index(self.log_repository.all())
+    return Success(new_events)
 
-    def get_current_workout_index(self) -> int:
-        """Get current workout index from domain model."""
-        plan = self.template.to_mesocycle_plan()
-        return plan.current_workout_index(self.log_repository.all())
 
-    def show_current_day(self):
-        raise NotImplementedError()
+def complete_exercise(
+    events: list[Event],
+    template: Template,
+    exercise: str,
+    feedback: dict[str, int],
+) -> Result[list[Event], str]:
+    """Pure business logic for completing an exercise."""
+    week, workout = current_position(events, template)
+    state = exercise_state(events, exercise, week, workout)
 
-    def complete_exercise(
-        self, exercise_name: str, feedback: MappingProxyType
-    ) -> Result[str, ValueError]:
+    # Get required sets from template
+    plan = template.to_mesocycle_plan()
+    current_workout = plan.get_workout(week, workout)
 
-        week_index, workout_index = self._get_current_position()
-        log = self.log_repository.all()
+    if not current_workout:
+        return Failure(f"No workout found at week {week}, workout {workout}")
 
-        # Use domain aggregate to check if exercise can be completed
-        exercise_session = ExerciseSession(
-            exercise_name=exercise_name,
-            week_index=week_index,
-            workout_index=workout_index,
-            events=log,
-        )
+    current_exercise = next(
+        (ex for ex in current_workout.exercises if ex.name == exercise), None
+    )
 
-        # Get required sets from template
-        current_workout = self.plan.get_workout(week_index, workout_index)
-        current_exercise = next(
-            (
-                ex
-                for ex in current_workout.exercises
-                if ex.name == exercise_name
-            ),
-            None,
+    if not current_exercise:
+        return Failure(f"Exercise '{exercise}' not found in workout {workout}")
+
+    required_sets = len(current_exercise.sets) if current_exercise.sets else 1
+
+    if len(state["sets"]) < required_sets:
+        return Failure(
+            f"Cannot complete '{exercise}' - only {len(state['sets'])} of {required_sets} sets completed"
         )
 
-        if not current_exercise:
-            return Failure(
-                ValueError(
-                    f"Exercise {exercise_name} not found in workout {workout_index}"  # noqa
-                )
-            )
+    if state["completed"]:
+        return Failure(f"Exercise '{exercise}' already completed")
 
-        required_sets = (
-            len(current_exercise.sets) if current_exercise.sets else 1
+    event = ExerciseCompleted(
+        exercise=exercise,
+        week_index=week,
+        workout_index=workout,
+        feedback=feedback,
+    )
+
+    return Success([event])
+
+
+def complete_workout(
+    events: list[Event], template: Template
+) -> Result[list[Event], str]:
+    """Pure business logic for completing a workout."""
+    week, workout = current_position(events, template)
+
+    plan = template.to_mesocycle_plan()
+    current_workout = plan.get_workout(week, workout)
+
+    if not current_workout:
+        return Failure(f"No workout found at week {week}, workout {workout}")
+
+    exercise_names = [ex.name for ex in current_workout.exercises]
+    state = workout_state(events, exercise_names, week, workout)
+
+    if state["missing_exercises"]:
+        missing = ", ".join(state["missing_exercises"])
+        return Failure(
+            f"Cannot complete workout - missing exercises: {missing}"
         )
 
-        if not exercise_session.can_complete(required_sets):
-            sets_performed = len(exercise_session.sets)
-            return Failure(
-                ValueError(
-                    f"Cannot complete exercise {exercise_name} as only\
-                     {sets_performed} of {required_sets} sets have been completed"  # noqa
-                )
-            )
+    if state["completed"]:
+        return Failure(f"Workout {workout} already completed")
 
-        completed_event = ExerciseCompleted(
-            exercise=exercise_name,
-            workout_index=workout_index,
-            week_index=week_index,
-            feedback=dict(feedback),
-        )
-        self.log_repository.add(completed_event)
-        return Success(f"Logged completion for exercise: {exercise_name}")
+    event = WorkoutCompleted(week_index=week, workout_index=workout)
 
-    def complete_workout(self) -> Result[str, ValueError]:
-
-        week_index, workout_index = self._get_current_position()
-        log = self.log_repository.all()
-
-        current_workout = self.plan.get_workout(week_index, workout_index)
-        if not current_workout:
-            return Failure(
-                ValueError(
-                    f"No workout found at week {week_index},"
-                    f"workout {workout_index}"
-                )
-            )
-
-        exercises_in_template = [ex.name for ex in current_workout.exercises]
-
-        # Use domain aggregate to check if workout can be completed
-        workout_session = WorkoutSession(
-            week_index=week_index,
-            workout_index=workout_index,
-            exercise_names=exercises_in_template,
-            events=log,
-        )
-
-        if not workout_session.can_complete():
-            missing = workout_session.missing_exercises
-            return Failure(
-                ValueError(
-                    f"Cannot complete workout {workout_index} as the\
-                     following exercises are not yet completed: \
-                     {', '.join(missing)}"
-                )
-            )
-
-        completed_event = WorkoutCompleted(
-            workout_index=workout_index,
-            week_index=week_index,
-        )
-        self.log_repository.add(completed_event)
-        return Success(f"Logged completion for workout: {workout_index}")
-
-    def _get_current_position(self) -> tuple[int, int]:
-        """Get current (week_index, workout_index) from domain."""
-        events = self.log_repository.all()
-        week_idx = self.plan.current_week_index(events)
-        workout_idx = self.plan.current_workout_index(events)
-        return week_idx, workout_idx
+    return Success([event])
