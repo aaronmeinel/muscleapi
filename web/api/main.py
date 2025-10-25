@@ -15,14 +15,16 @@ import rich
 import sys
 
 
-from src.models import Set
+from src.domain.state import exercise_state
+from src.models import MesocyclePlan, Set, Workout
 from src.events import (
     ExerciseStarted,
     ExerciseCompleted,
+    SetLogged,
     WorkoutCompleted,
 )
-from src.service.plan_management import 
-from src.service.logging import log_set
+
+from src.service.logging import current_position, log_set
 from src.service.prescription import (
     get_prescriptions_for_workout,
     feedback_based_progression,
@@ -139,90 +141,67 @@ async def health_check():
 @app.get("/api/current-workout", response_model=CurrentWorkoutResponse)
 async def get_current_workout():
     """Get the current workout with prescriptions and logged sets."""
-    try:
-        plan = logging_service.plan
-        events = log_repo.all()
+    events = load_events(EVENTS_PATH)
+    template = load_template(TEMPLATE_PATH)
+    plan = template.to_mesocycle_plan()
 
-        week_idx, workout_idx = logging_service._get_current_position()
-        current_workout = plan.get_workout(week_idx, workout_idx)
+    week_index, workout_index = current_position(events, template)
 
-        if not current_workout:
-            raise HTTPException(
-                status_code=404, detail="No current workout found"
+    current_workout: Optional[Workout] = plan.get_workout(
+        week_index, workout_index
+    )
+    if not current_workout:
+        raise HTTPException(status_code=404, detail="No current workout found")
+
+    baseline_prescriptions = {}
+    for exercise in current_workout.exercises:
+        baseline_prescriptions[exercise.name] = [
+            Prescription(
+                prescribed_reps=s.prescribed_reps,
+                prescribed_weight=s.prescribed_weight,
             )
+            for s in exercise.sets
+        ]
+    all_sets = [e for e in events if isinstance(e, SetLogged)]
+    all_feedback = [e for e in events if isinstance(e, ExerciseCompleted)]
 
-        # Get baseline prescriptions from template
-        baseline_prescriptions = {}
-        for exercise in current_workout.exercises:
-            baseline_prescriptions[exercise.name] = [
-                Prescription(
-                    prescribed_reps=s.prescribed_reps,
-                    prescribed_weight=s.prescribed_weight,
-                )
-                for s in exercise.sets
-            ]
-
-        # Get all sets and feedback for intelligent prescription
-        # IMPORTANT: We include ALL historical sets, even from current workout.
-        # The prescription service filters to only use COMPLETED exercises,
-        # so in-progress sets will be ignored automatically.
-        all_sets = [e for e in events if isinstance(e, Set)]
-        all_feedback = [e for e in events if isinstance(e, ExerciseCompleted)]
-
-        # Use prescription service to calculate adjusted prescriptions
-        # Excludes current workout completions to keep prescriptions stable
-        exercises_planned = get_prescriptions_for_workout(
-            workout_exercises=baseline_prescriptions,
-            all_sets=all_sets,
-            all_feedback=all_feedback,
-            current_week_idx=week_idx,
-            current_workout_idx=workout_idx,
-            strategy=feedback_based_progression,
+    exercises_planned = get_prescriptions_for_workout(
+        baseline_prescriptions,
+        all_sets,
+        all_feedback,
+        current_week_idx=week_index,
+        current_workout_idx=workout_index,
+    )
+    exercise_infos = []
+    for exercise_name, prescriptions in exercises_planned.items():
+        state = exercise_state(
+            events, exercise_name, week_index, workout_index
         )
+        logged_sets_info = [
+            LoggedSetInfo(reps=s.reps, weight=s.weight) for s in state["sets"]
+        ]
 
-        # Build exercise info with logged sets
-        exercise_infos = []
-        for exercise_name, prescriptions in exercises_planned.items():
-            # Get state for this exercise
-            session = ExerciseSession(
-                exercise_name=exercise_name,
-                week_index=week_idx,
-                workout_index=workout_idx,
-                events=events,
+        prescription_dicts = [
+            {
+                "prescribed_reps": p.prescribed_reps,
+                "prescribed_weight": p.prescribed_weight,
+            }
+            for p in prescriptions
+        ]
+        exercise_infos.append(
+            ExerciseInfo(
+                name=exercise_name,
+                prescribed_sets=prescription_dicts,
+                logged_sets=logged_sets_info,
+                is_started=state["started"],
+                is_completed=state["completed"],
             )
-
-            # Convert sets to API format
-            logged_sets_info = [
-                LoggedSetInfo(reps=s.reps, weight=s.weight)
-                for s in session.sets
-            ]
-
-            # Convert Prescription objects to dicts for API
-            prescription_dicts = [
-                {
-                    "prescribed_reps": p.prescribed_reps,
-                    "prescribed_weight": p.prescribed_weight,
-                }
-                for p in prescriptions
-            ]
-
-            exercise_infos.append(
-                ExerciseInfo(
-                    name=exercise_name,
-                    prescribed_sets=prescription_dicts,
-                    logged_sets=logged_sets_info,
-                    is_started=session.is_started,
-                    is_completed=session.is_completed,
-                )
-            )
-        return CurrentWorkoutResponse(
-            week_index=week_idx,
-            workout_index=workout_idx,
-            exercises=exercise_infos,
         )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return CurrentWorkoutResponse(
+        week_index=week_index,
+        workout_index=workout_index,
+        exercises=exercise_infos,
+    )
 
 
 @app.post("/api/log-set", response_model=ApiResponse)

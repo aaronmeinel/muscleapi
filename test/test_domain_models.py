@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-
+import rich
 from src.models import (
     MesocyclePlan,
     Week,
@@ -11,7 +11,7 @@ from src.models import (
     SetPrescription,
     Set,
 )
-from src.events import WorkoutCompleted, ExerciseStarted
+from src.events import SetLogged, WorkoutCompleted, ExerciseStarted
 
 
 @pytest.fixture
@@ -54,6 +54,7 @@ class TestMesocyclePlanNavigation:
     def test_get_workout_valid_indices(self, simple_plan):
         workout = simple_plan.get_workout(0, 0)
         assert workout is not None
+        assert isinstance(workout, Workout)
         assert len(workout.exercises) == 2
         assert workout.exercises[0].name == "Squat"
 
@@ -61,6 +62,28 @@ class TestMesocyclePlanNavigation:
         assert simple_plan.get_workout(-1, 0) is None
         assert simple_plan.get_workout(0, -1) is None
         assert simple_plan.get_workout(10, 0) is None
+
+    def test_get_curent_workout_prescriptions_no_events(self, simple_plan):
+        prescriptions = simple_plan.get_current_workout_prescriptions(
+            sets_performed=[],
+            progress_function=lambda x: x,
+        )
+        assert "Squat" in prescriptions
+        assert "Bench" in prescriptions
+
+    def test_get_current_workout_prescriptions_with_events(
+        self, simple_plan: MesocyclePlan
+    ):
+        events = [
+            ExerciseStarted("Bench", 0, 0, {}),
+            SetLogged("Bench", datetime.now(), 0, 0, 5, 200),
+        ]
+        prescriptions = simple_plan.get_current_workout_prescriptions(
+            sets_performed=events,
+            progress_function=lambda x: x,
+        )
+
+        assert False, prescriptions
 
 
 class TestCurrentWeekCalculation:

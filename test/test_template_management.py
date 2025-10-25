@@ -258,3 +258,25 @@ def test_second_week_has_prescriptions_after_complete_first_week():
             {"prescribed_reps": 5, "prescribed_weight": 5},
         ],
     }
+
+
+def test_template_to_mesocycle_plan(sample_template: Template):
+    plan = sample_template.to_mesocycle_plan()
+    assert isinstance(plan, MesocyclePlan)
+    assert len(plan.weeks) == 4
+    for week in plan.weeks:
+        assert len(week.workouts) == 2  # from sample_template
+
+    assert all(isinstance(week, Week) for week in plan.weeks)
+    assert all(
+        isinstance(workout, Workout)
+        for week in plan.weeks
+        for workout in week.workouts
+    )
+
+    assert all(
+        isinstance(exercise, Exercise)
+        for week in plan.weeks
+        for workout in week.workouts
+        for exercise in workout.exercises
+    )

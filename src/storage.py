@@ -43,8 +43,4 @@ def load_template(path: Path) -> Template:
         data = yaml.safe_load(f)
 
     # Use your existing Template parsing logic
-    return (
-        Template.from_dict(data)
-        if hasattr(Template, "from_dict")
-        else Template(**data)
-    )
+    return Template.from_dict(data)

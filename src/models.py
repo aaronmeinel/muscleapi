@@ -8,7 +8,7 @@ import yaml
 from dataclasses import asdict
 from pydantic import BaseModel, Field
 
-from src.events import WorkoutCompleted, ExerciseCompleted
+from src.events import Event, WorkoutCompleted, ExerciseCompleted
 
 
 class ExerciseFeedback(BaseModel):
@@ -39,12 +39,7 @@ class WorkoutFeedback(BaseModel):
 
 @dataclass(frozen=True, eq=True)
 class Set:
-    """Represents a set of an exercise.
-
-    Since we're building a very specialized system here,
-    this serves as an event at the same time.
-    We make a deliberate choice for coupling here for prototyping.
-    """
+    """Represents a set of an exercise."""
 
     exercise: str
     reps: int
@@ -52,44 +47,6 @@ class Set:
     timestamp: datetime
     week_index: int
     workout_index: int
-
-    @classmethod
-    def create_safe(
-        cls,
-        log: Iterable,
-        exercise: str,
-        reps: int,
-        weight: float,
-        week_index: int,
-        workout_index: int,
-    ) -> "Set":
-        """Factory method that checks if the set
-        can be created in the given context.
-        This means that we need to check
-        if the exercise has already been completed
-        in the given workout and week.
-        """
-
-        completed = filter(
-            lambda e: isinstance(e, ExerciseCompleted)
-            and e.workout_index == workout_index
-            and e.week_index == week_index
-            and e.exercise == exercise,
-            log,
-        )
-        if any(completed):
-            raise ValueError(
-                f"Cannot log set for exercise {exercise} in workout\
-                {workout_index} week {week_index} - exercise already completed"
-            )
-        return cls(
-            exercise=exercise,
-            reps=reps,
-            weight=weight,
-            timestamp=datetime.now(),
-            week_index=week_index,
-            workout_index=workout_index,
-        )
 
 
 @dataclass(frozen=True)
@@ -178,6 +135,30 @@ class Template:
             }
         )
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "Template":
+        workouts = tuple(
+            Workout(
+                exercises=tuple(
+                    Exercise(
+                        name=ex["name"],
+                        sets=(
+                            tuple(
+                                SetPrescription(**s)
+                                for s in ex.get("sets", [])
+                            )
+                            if ex.get("sets")
+                            else None
+                        ),
+                    )
+                    for ex in w["exercises"]
+                ),
+                index=w.get("index"),
+            )
+            for w in data["workouts"]
+        )
+        return cls(name=data["name"], workouts=workouts)
+
 
 @dataclass(frozen=True)
 class Week:
@@ -205,9 +186,9 @@ class MesocyclePlan:
 
     def get_current_workout_prescriptions(
         self,
-        sets_performed: list[Set],
+        sets_performed: list[Event],
         progress_function: Callable[[Optional[Number]], Optional[Number]],
-    ) -> dict[str, list[dict]]:
+    ) -> dict[str, list[dict[str, Optional[Number]]]]:
         """Get prescriptions for the current
         workout based on progression function."""
         # Use the new navigation methods instead of the old first() logic
